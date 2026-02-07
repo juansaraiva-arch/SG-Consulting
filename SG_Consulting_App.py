@@ -201,3 +201,148 @@ with tab3:
             ¡Felicidades! Cobras y vendes antes de tener que pagar. Estás trabajando con el dinero de tus proveedores (Ciclo Negativo o financiado).
             </div>
             """, unsafe_allow_html=True)
+
+# ==========================================
+# GENERADOR DE REPORTE PDF (SG CONSULTING)
+# ==========================================
+from fpdf import FPDF
+from datetime import datetime
+
+def create_pdf(ventas, ebitda, margen_ebitda, punto_equilibrio, margen_seguridad, 
+               dias_calle, dias_inventario, dias_proveedor, ciclo_efectivo):
+    
+    class PDF(FPDF):
+        def header(self):
+            # Título / Membrete
+            self.set_font('Arial', 'B', 16)
+            self.cell(0, 10, 'SG CONSULTING | Informe de Diagnóstico Financiero', 0, 1, 'C')
+            self.set_font('Arial', 'I', 10)
+            self.cell(0, 10, 'Estrategia, Intervención y Rentabilidad', 0, 1, 'C')
+            self.ln(5)
+
+        def footer(self):
+            self.set_y(-15)
+            self.set_font('Arial', 'I', 8)
+            self.cell(0, 10, f'Página {self.page_no()} - Generado por SG Rescue App el {datetime.now().strftime("%d/%m/%Y")}', 0, 0, 'C')
+
+    pdf = PDF()
+    pdf.add_page()
+    pdf.set_auto_page_break(auto=True, margin=15)
+
+    # 1. RESUMEN EJECUTIVO
+    pdf.set_font('Arial', 'B', 12)
+    pdf.set_fill_color(200, 220, 255) # Azul claro
+    pdf.cell(0, 10, ' 1. RESUMEN EJECUTIVO DE SIGNOS VITALES', 1, 1, 'L', fill=True)
+    pdf.ln(2)
+    
+    pdf.set_font('Arial', '', 11)
+    
+    # Evaluar estado general para el texto
+    estado_ebitda = "CRÍTICO" if ebitda < 0 else "VULNERABLE" if margen_ebitda < 10 else "SÓLIDO"
+    estado_caja = "AHOGO FINANCIERO" if ciclo_efectivo > 0 else "LIQUIDEZ ÓPTIMA"
+    
+    pdf.multi_cell(0, 7, f"El presente diagnóstico evalúa la salud financiera de la empresa con base en la metodología de Rentabilidad y Flujo de Caja. El estado actual del negocio es: {estado_ebitda} en Operación y presenta un cuadro de {estado_caja}.")
+    pdf.ln(5)
+
+    # 2. DETALLE DE POTENCIA (EBITDA)
+    pdf.set_font('Arial', 'B', 12)
+    pdf.cell(0, 10, ' 2. ANÁLISIS DE POTENCIA (MÓDULO 1)', 1, 1, 'L', fill=True)
+    pdf.set_font('Arial', '', 11)
+    pdf.ln(2)
+    
+    pdf.cell(50, 8, f"Ventas Totales:", 0)
+    pdf.cell(50, 8, f"${ventas:,.2f}", 0, 1)
+    pdf.cell(50, 8, f"EBITDA (Caja Operativa):", 0)
+    
+    # Color rojo si es negativo (simulado con texto)
+    if ebitda < 0:
+        pdf.set_text_color(194, 24, 7) # Rojo
+    else:
+        pdf.set_text_color(0, 100, 0) # Verde
+        
+    pdf.cell(50, 8, f"${ebitda:,.2f} ({margen_ebitda:.1f}%)", 0, 1)
+    pdf.set_text_color(0, 0, 0) # Reset color
+    
+    if ebitda < 0:
+        pdf.set_font('Arial', 'I', 10)
+        pdf.multi_cell(0, 6, "ALERTA: El modelo de negocio no es viable. Los gastos operativos superan a la utilidad bruta. Se requiere reestructuración inmediata de personal o costos fijos.")
+    pdf.ln(5)
+
+    # 3. LÍNEA DE SUPERVIVENCIA (PUNTO DE EQUILIBRIO)
+    pdf.set_font('Arial', 'B', 12)
+    pdf.set_text_color(0, 0, 0)
+    pdf.cell(0, 10, ' 3. LÍNEA DE SUPERVIVENCIA (MÓDULO 2)', 1, 1, 'L', fill=True)
+    pdf.set_font('Arial', '', 11)
+    pdf.ln(2)
+    
+    pdf.cell(60, 8, f"Punto de Equilibrio (Meta):", 0)
+    pdf.cell(50, 8, f"${punto_equilibrio:,.2f}", 0, 1)
+    pdf.cell(60, 8, f"Margen de Seguridad:", 0)
+    pdf.cell(50, 8, f"{margen_seguridad:.1f}%", 0, 1)
+    
+    if margen_seguridad < 10:
+        pdf.set_text_color(194, 24, 7)
+        pdf.multi_cell(0, 6, "RIESGO ALTO: La empresa está en zona de peligro. Cualquier caída leve en ventas resultará en pérdidas netas. 'Cualquier gripe del mercado mata a la empresa'.")
+    pdf.set_text_color(0, 0, 0)
+    pdf.ln(5)
+
+    # 4. OXÍGENO Y CAJA (MÓDULO 3)
+    pdf.set_font('Arial', 'B', 12)
+    pdf.cell(0, 10, ' 4. CICLO DEL DINERO (MÓDULO 3)', 1, 1, 'L', fill=True)
+    pdf.set_font('Arial', '', 11)
+    pdf.ln(2)
+    
+    pdf.cell(60, 8, f"Días Calle (Cobro):", 0)
+    pdf.cell(50, 8, f"{dias_calle:.0f} días", 0, 1)
+    pdf.cell(60, 8, f"Días Inventario:", 0)
+    pdf.cell(50, 8, f"{dias_inventario:.0f} días", 0, 1)
+    pdf.cell(60, 8, f"Días Proveedor (Pago):", 0)
+    pdf.cell(50, 8, f"{dias_proveedor:.0f} días", 0, 1)
+    pdf.ln(2)
+    
+    pdf.set_font('Arial', 'B', 11)
+    pdf.cell(60, 8, f"CICLO DE CAJA (CCC):", 0)
+    pdf.cell(50, 8, f"{ciclo_efectivo:.0f} días", 0, 1)
+    pdf.set_font('Arial', '', 11)
+    
+    # Recomendaciones Automáticas
+    pdf.ln(3)
+    pdf.set_font('Arial', 'I', 10)
+    rec_text = "RECOMENDACIONES ESTRATÉGICAS:\n"
+    if dias_calle > 45:
+        rec_text += "- Implementar política de 'Descuento por Pronto Pago' o Factoring para acelerar cobros.\n"
+    if dias_inventario > 60:
+        rec_text += "- Ejecutar estrategia de 'Remate de Inventario Muerto' para liberar efectivo atrapado.\n"
+    if ciclo_efectivo > 0:
+        rec_text += "- La empresa financia la operación con recursos propios. Prioridad: Negociar plazos con proveedores."
+    
+    pdf.multi_cell(0, 6, rec_text)
+    pdf.ln(10)
+
+    # 5. NOTA LEGAL (DISCLAIMER)
+    pdf.set_draw_color(194, 24, 7)
+    pdf.set_line_width(0.5)
+    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+    pdf.ln(2)
+    pdf.set_font('Arial', 'B', 9)
+    pdf.cell(0, 5, "ADVERTENCIA DE RESPONSABILIDAD GERENCIAL Y FIDUCIARIA", 0, 1, 'C')
+    pdf.set_font('Arial', '', 8)
+    pdf.multi_cell(0, 4, "Este reporte constituye una herramienta de diagnóstico interno. Operar con márgenes negativos o insolvencia técnica puede acarrear responsabilidades patrimoniales para los administradores según la legislación mercantil vigente. Se recomienda la implementación inmediata del plan de estabilización.")
+
+    return pdf.output(dest='S').encode('latin-1')
+
+# --- BOTÓN DE DESCARGA EN LA BARRA LATERAL ---
+st.sidebar.markdown("---")
+st.sidebar.header("📥 Entregable")
+
+if st.sidebar.button("Generar PDF de Diagnóstico"):
+    # Generamos el PDF pasando todas las variables calculadas en los módulos anteriores
+    pdf_bytes = create_pdf(ventas, ebitda, margen_ebitda, punto_equilibrio, margen_seguridad, 
+                           dias_calle, dias_inventario, dias_proveedor, ciclo_efectivo)
+    
+    st.sidebar.download_button(
+        label="💾 Descargar Reporte SG Consulting",
+        data=pdf_bytes,
+        file_name="Diagnostico_SG_Consulting.pdf",
+        mime="application/pdf"
+    )
