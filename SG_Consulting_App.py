@@ -11,250 +11,256 @@ st.set_page_config(page_title="SG Strategic Dashboard", layout="wide", initial_s
 st.markdown("""
     <style>
     .metric-card { background-color: #ffffff; padding: 20px; border-radius: 10px; border-left: 5px solid #1565c0; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-    .alert-box { padding: 15px; border-radius: 5px; margin-bottom: 10px; }
-    .alert-danger { background-color: #fdecea; color: #c62828; border: 1px solid #c62828; }
-    .alert-warning { background-color: #fff8e1; color: #ef6c00; border: 1px solid #ef6c00; }
-    .alert-success { background-color: #e8f5e9; color: #2e7d32; border: 1px solid #2e7d32; }
+    .alert-box { padding: 15px; border-radius: 5px; margin-bottom: 10px; border-left: 5px solid; }
+    .alert-danger { background-color: #fdecea; color: #c62828; border-color: #c62828; }
+    .alert-warning { background-color: #fff8e1; color: #ef6c00; border-color: #ef6c00; }
+    .alert-success { background-color: #e8f5e9; color: #2e7d32; border-color: #2e7d32; }
+    .level-header { font-size: 18px; font-weight: bold; color: #1565c0; margin-top: 20px; }
     </style>
     """, unsafe_allow_html=True)
 
 st.title("🚀 SG Consulting | Strategic Dashboard")
-st.markdown("Diagnóstico Empresarial: **Rentabilidad, Liquidez y Tendencias**")
+st.markdown("Diagnóstico basado en **La Cascada de Potencia** y **Línea de Supervivencia**")
 
-# --- BARRA LATERAL: INPUT DE DATOS ---
+# --- BARRA LATERAL: INPUT DE VARIABLES (COINCIDEN CON LA METODOLOGÍA) ---
 with st.sidebar:
-    st.header("1. Cierre del Mes Actual")
+    st.header("1. Datos Financieros (Mes Actual)")
     
     with st.expander("A. Estado de Resultados (P&L)", expanded=True):
-        ventas_actual = st.number_input("Ventas Totales ($)", value=50000.0, step=1000.0, key="v_act")
-        costo_ventas = st.number_input("Costo de Ventas (Variables)", value=30000.0, step=1000.0, key="c_act")
-        gastos_operativos = st.number_input("Gastos Operativos (Fijos)", value=15000.0, step=500.0, key="g_act")
-        depreciacion = st.number_input("Depreciaciones", value=1500.0, key="d_act")
-        intereses = st.number_input("Gastos Financieros", value=500.0, key="i_act")
-        impuestos = st.number_input("Impuestos", value=900.0, key="imp_act")
+        st.info("Ingresa los datos para calcular los 4 Niveles de Potencia.")
+        ventas_actual = st.number_input("Ventas Totales ($)", value=50000.0, step=1000.0)
+        costo_ventas = st.number_input("Costo de Ventas (Variable)", value=30000.0, step=1000.0, help="Materia prima, mano de obra directa.")
+        gastos_operativos = st.number_input("Gastos Operativos (Opex)", value=12000.0, step=500.0, help="Renta, nómina administrativa, luz, marketing.")
+        depreciacion = st.number_input("Depreciaciones + Amortizaciones", value=2000.0, step=100.0, help="Desgaste de activos.")
+        intereses = st.number_input("Intereses (Gastos Financieros)", value=1000.0, step=100.0)
+        impuestos = st.number_input("Impuestos", value=1500.0, step=100.0)
 
-    with st.expander("B. Balance General (Liquidez)", expanded=False):
+    with st.expander("B. Balance General (Para Flujo de Caja)", expanded=False):
         activo_corriente = st.number_input("Activo Corriente", value=80000.0)
         pasivo_corriente = st.number_input("Pasivo Corriente", value=60000.0)
-        inventario = st.number_input("Inventario", value=20000.0)
-        cuentas_cobrar = st.number_input("Cuentas por Cobrar", value=15000.0)
-        cuentas_pagar = st.number_input("Cuentas por Pagar", value=10000.0)
+        inventario = st.number_input("Inventario ($)", value=20000.0)
+        cuentas_cobrar = st.number_input("Cuentas por Cobrar ($)", value=15000.0)
+        cuentas_pagar = st.number_input("Cuentas por Pagar ($)", value=10000.0)
 
-    st.header("2. Histórico (Tendencias)")
-    st.info("Ingresa los datos pasados para calcular el EBITDA real de cada mes.")
-    
-    # --- LOGICA DINÁMICA DE MESES ---
-    num_meses = st.number_input("Meses a comparar (sin incluir actual)", min_value=1, max_value=6, value=2, step=1)
-    
-    historial_ventas = []
-    historial_ebitda = []
-    meses_labels = []
+# --- CÁLCULOS: LA CASCADA DE POTENCIA (4 NIVELES) ---
 
-    # Bucle para pedir datos de cada mes histórico
-    for i in range(num_meses):
-        # Etiqueta del mes (Ej: Mes -1, Mes -2)
-        idx_mes = num_meses - i
-        label_mes = f"Mes Anterior (-{idx_mes})"
-        meses_labels.append(label_mes)
-        
-        with st.expander(f"Datos: {label_mes}", expanded=False):
-            # Pedimos los 3 componentes para calcular EBITDA
-            col_h1, col_h2, col_h3 = st.columns(3)
-            
-            # Valores por defecto para agilizar la demo
-            def_v = 40000.0 + (i * 2000)
-            def_c = 25000.0 + (i * 1000)
-            def_g = 12000.0
-            
-            v_hist = col_h1.number_input("Ventas", value=def_v, key=f"v_{i}")
-            c_hist = col_h2.number_input("Costos (Var)", value=def_c, key=f"c_{i}")
-            g_hist = col_h3.number_input("Gastos (Fij)", value=def_g, key=f"g_{i}")
-            
-            # CÁLCULO AUTOMÁTICO DEL EBITDA HISTÓRICO
-            ebitda_calc = v_hist - c_hist - g_hist
-            st.markdown(f"**EBITDA Calculado:** :green[${ebitda_calc:,.0f}]")
-            
-            historial_ventas.append(v_hist)
-            historial_ebitda.append(ebitda_calc)
-
-    # Agregamos el mes actual al final de las listas para la gráfica completa
-    ebitda_actual_calc = ventas_actual - costo_ventas - gastos_operativos
-    
-    meses_labels.append("Mes Actual")
-    historial_ventas.append(ventas_actual)
-    historial_ebitda.append(ebitda_actual_calc)
-
-# --- CÁLCULOS ESTRATÉGICOS GLOBALES ---
-# Rentabilidad Actual
+# NIVEL 1: Potencia Comercial
 utilidad_bruta = ventas_actual - costo_ventas
-margen_ebitda = (ebitda_actual_calc / ventas_actual) * 100 if ventas_actual > 0 else 0
-utilidad_neta = ebitda_actual_calc - depreciacion - intereses - impuestos
+margen_bruto = (utilidad_bruta / ventas_actual) * 100 if ventas_actual > 0 else 0
 
-# Liquidez
-razon_circulante = activo_corriente / pasivo_corriente if pasivo_corriente > 0 else 0
-ccc = ((cuentas_cobrar / ventas_actual) * 30) + ((inventario / costo_ventas) * 30) - ((cuentas_pagar / costo_ventas) * 30)
+# NIVEL 2: Potencia Operativa (El Corazón)
+ebitda = utilidad_bruta - gastos_operativos
+margen_ebitda = (ebitda / ventas_actual) * 100 if ventas_actual > 0 else 0
 
-# Punto de Equilibrio
-costos_fijos_totales = gastos_operativos + intereses
+# NIVEL 3: Potencia de Activos (EBIT) - ¡AGREGADO!
+ebit = ebitda - depreciacion
+margen_ebit = (ebit / ventas_actual) * 100 if ventas_actual > 0 else 0
+
+# NIVEL 4: Potencia Patrimonial
+utilidad_neta = ebit - intereses - impuestos
+margen_neto = (utilidad_neta / ventas_actual) * 100 if ventas_actual > 0 else 0
+
+# --- CÁLCULOS: SUPERVIVENCIA Y OXÍGENO ---
+
+# Punto de Equilibrio (Módulo 2)
+# Costos Fijos Totales = Gastos Operativos (Planilla, Alquiler) + Intereses (Seguros, Servicios)
+# Nota: Según el texto, Costos Fijos incluye Planilla base, Alquiler. Asumimos Opex + Intereses.
+costos_fijos_totales = gastos_operativos + intereses 
 margen_contribucion_pct = (utilidad_bruta / ventas_actual) if ventas_actual > 0 else 0
 punto_equilibrio = costos_fijos_totales / margen_contribucion_pct if margen_contribucion_pct > 0 else 0
+margen_seguridad = ventas_actual - punto_equilibrio
+
+# Ciclo de Caja (Módulo 3)
+dias_calle = (cuentas_cobrar / ventas_actual) * 30 if ventas_actual > 0 else 0
+dias_inventario = (inventario / costo_ventas) * 30 if costo_ventas > 0 else 0
+dias_proveedor = (cuentas_pagar / costo_ventas) * 30 if costo_ventas > 0 else 0
+ccc = dias_calle + dias_inventario - dias_proveedor
 
 # --- DASHBOARD VISUAL ---
 
-tab1, tab2, tab3 = st.tabs(["📈 Tendencia & Potencia", "⚖️ Equilibrio Maestro", "💰 Liquidez (Cash Flow)"])
+tab1, tab2, tab3 = st.tabs(["💎 La Cascada de Potencia", "⚖️ Línea de Supervivencia", "🫁 El Oxígeno (Caja)"])
 
-# MÓDULO 1: TENDENCIA & POTENCIA
+# MÓDULO 1: CASCADA DE POTENCIA
 with tab1:
-    st.subheader(f"Análisis de Evolución ({num_meses + 1} Periodos)")
+    st.subheader("Diagnóstico de los 4 Niveles de Potencia")
     
-    # GRÁFICO DE TENDENCIA
-    fig_trend = go.Figure()
-    fig_trend.add_trace(go.Scatter(x=meses_labels, y=historial_ventas, mode='lines+markers+text', name='Ventas', 
-                                   text=[f"${x/1000:.0f}k" for x in historial_ventas], textposition="top center",
-                                   line=dict(color='#1e88e5', width=3)))
-    fig_trend.add_trace(go.Scatter(x=meses_labels, y=historial_ebitda, mode='lines+markers+text', name='EBITDA (Real)', 
-                                   text=[f"${x/1000:.0f}k" for x in historial_ebitda], textposition="top center",
-                                   line=dict(color='#43a047', width=3), fill='tozeroy'))
+    col_main, col_chart = st.columns([1.5, 1])
     
-    fig_trend.update_layout(title="Ventas vs. Rentabilidad Real (Calculada)", height=450, hovermode="x unified")
-    st.plotly_chart(fig_trend, use_container_width=True)
-
-    # CÁLCULO DE CRECIMIENTO (Inicio vs Fin)
-    inicio_v = historial_ventas[0]
-    fin_v = historial_ventas[-1]
-    inicio_e = historial_ebitda[0]
-    fin_e = historial_ebitda[-1]
-    
-    crecimiento_ventas = ((fin_v - inicio_v) / inicio_v) * 100 if inicio_v > 0 else 0
-    crecimiento_ebitda = ((fin_e - inicio_e) / inicio_e) * 100 if inicio_e > 0 else 0
-    
-    col_t1, col_t2, col_t3 = st.columns(3)
-    with col_t1:
-        st.metric("Crecimiento Ventas", f"{crecimiento_ventas:.1f}%", help="Variación desde el primer mes registrado hasta hoy.")
-    with col_t2:
-        st.metric("Crecimiento EBITDA", f"{crecimiento_ebitda:.1f}%", help="Variación de la utilidad operativa real.")
-    with col_t3:
-        st.metric("Margen EBITDA Actual", f"{margen_ebitda:.1f}%", help="Eficiencia del mes actual.")
-
-    st.markdown("---")
-    st.write("#### 🧠 Diagnóstico de Tendencia (SG Consulting):")
-    
-    if crecimiento_ventas > 0 and crecimiento_ebitda < 0:
-        st.markdown("""<div class="alert-box alert-danger">
-        🚨 <strong>ALERTA DE INEFICIENCIA:</strong> Cuidado. Tus ventas han subido, pero tu EBITDA ha bajado. 
-        Estás gastando más de lo que ingresas extra. Revisa Costos Variables y Gastos Fijos históricos.</div>""", unsafe_allow_html=True)
-    elif crecimiento_ventas > crecimiento_ebitda:
-        st.markdown("""<div class="alert-box alert-warning">
-        ⚠️ <strong>CRECIMIENTO PESADO:</strong> El negocio crece, pero la estructura de costos crece más rápido. 
-        El EBITDA no sigue el ritmo de las ventas.</div>""", unsafe_allow_html=True)
-    else:
-        st.markdown("""<div class="alert-box alert-success">
-        ✅ <strong>ESCALAMIENTO RENTABLE:</strong> Tu EBITDA crece saludablemente junto con tus ventas. 
-        Estás optimizando la operación mes a mes.</div>""", unsafe_allow_html=True)
-
-# MÓDULO 2: PUNTO DE EQUILIBRIO
-with tab2:
-    st.subheader("Mapa de Supervivencia (Mes Actual)")
-    
-    c1, c2 = st.columns([1,2])
-    with c1:
-        st.metric("Ventas Actuales", f"${ventas_actual:,.0f}")
-        st.metric("Punto de Equilibrio", f"${punto_equilibrio:,.0f}")
-        
-        if punto_equilibrio > 0:
-            pct_meta = (ventas_actual / punto_equilibrio) * 100
+    with col_main:
+        # NIVEL 1
+        st.markdown('<p class="level-header">Nivel 1: Potencia Comercial (Utilidad Bruta)</p>', unsafe_allow_html=True)
+        st.write(f"**${utilidad_bruta:,.2f}** (Margen: {margen_bruto:.1f}%)")
+        if margen_bruto < 30: # Umbral de ejemplo
+            st.markdown("""<div class="alert-box alert-warning">
+            ⚠️ <strong>SÍNTOMA:</strong> Margen bajo. No culpes a la administración. 
+            El problema es que compras caro o vendes barato.<br>
+            👉 <strong>ACCIÓN:</strong> Renegociar proveedores o subir precios.</div>""", unsafe_allow_html=True)
         else:
-            pct_meta = 0
-        
-        if ventas_actual > punto_equilibrio:
-            st.success(f"Cubres costos al {pct_meta:.0f}%")
+            st.success("✅ Modelo de precios y proveedores saludable.")
+
+        # NIVEL 2
+        st.markdown('<p class="level-header">Nivel 2: Potencia Operativa (EBITDA) - El Corazón</p>', unsafe_allow_html=True)
+        st.write(f"**${ebitda:,.2f}** (Margen: {margen_ebitda:.1f}%)")
+        if ebitda < 0:
+            st.markdown("""<div class="alert-box alert-danger">
+            🚨 <strong>SÍNTOMA:</strong> EBITDA Negativo. El negocio está enfermo de muerte.<br>
+            👉 <strong>ACCIÓN:</strong> Necesita cirugía mayor (recortes de estructura/personal) inmediato.</div>""", unsafe_allow_html=True)
         else:
-            st.error(f"Faltan ventas para cubrir costos.")
-        
-    with c2:
-        fig_eq = go.Figure(go.Indicator(
-            mode = "gauge+number",
-            value = ventas_actual,
-            title = {'text': "Ventas vs Meta Mínima"},
-            gauge = {
-                'axis': {'range': [None, punto_equilibrio * 1.5]},
-                'bar': {'color': "#1565c0"},
-                'threshold': {'line': {'color': "red", 'width': 4}, 'thickness': 0.75, 'value': punto_equilibrio}
-            }
+             st.success("✅ El corazón del negocio late fuerte. La operación genera dinero puro.")
+
+        # NIVEL 3
+        st.markdown('<p class="level-header">Nivel 3: Potencia de Activos (EBIT)</p>', unsafe_allow_html=True)
+        st.write(f"**${ebit:,.2f}** (Margen: {margen_ebit:.1f}%)")
+        if ebitda > 0 and ebit < (ebitda * 0.2): # Si el EBIT es muy bajo comparado al EBITDA
+             st.markdown("""<div class="alert-box alert-warning">
+            ⚠️ <strong>SÍNTOMA:</strong> EBITDA alto pero EBIT bajo.<br>
+            👉 <strong>DIAGNÓSTICO:</strong> Tienes activos muy costosos o viejos (Depreciación alta) que se comen la ganancia operativa.</div>""", unsafe_allow_html=True)
+
+        # NIVEL 4
+        st.markdown('<p class="level-header">Nivel 4: Potencia Patrimonial (Utilidad Neta)</p>', unsafe_allow_html=True)
+        st.write(f"**${utilidad_neta:,.2f}** (Margen: {margen_neto:.1f}%)")
+        if ebit > 0 and utilidad_neta < 0:
+             st.markdown("""<div class="alert-box alert-danger">
+            🚨 <strong>SÍNTOMA:</strong> EBIT bueno pero Neta roja.<br>
+            👉 <strong>DIAGNÓSTICO:</strong> El problema es Financiero (mucha deuda).<br>
+            👉 <strong>ACCIÓN:</strong> Reestructuración de deuda (ir al banco con los números en mano).</div>""", unsafe_allow_html=True)
+        elif utilidad_neta > 0:
+             st.success("✅ Potencia Patrimonial positiva. El dueño gana dinero.")
+
+    with col_chart:
+        # Gráfico Cascada EXACTO con los 4 niveles
+        fig_waterfall = go.Figure(go.Waterfall(
+            name = "20", orientation = "v",
+            measure = ["relative", "relative", "subtotal", "relative", "subtotal", "relative", "subtotal", "relative", "relative", "total"],
+            x = ["Ventas", "Costo Ventas", "Ut. Bruta", "Gastos Op.", "EBITDA", "Depreciación", "EBIT", "Intereses", "Impuestos", "Ut. Neta"],
+            y = [ventas_actual, -costo_ventas, utilidad_bruta, -gastos_operativos, ebitda, -depreciacion, ebit, -intereses, -impuestos, utilidad_neta],
+            connector = {"line":{"color":"rgb(63, 63, 63)"}},
+            decreasing = {"marker":{"color":"#ef5350"}},
+            increasing = {"marker":{"color":"#66bb6a"}},
+            totals = {"marker":{"color":"#1565c0"}}
         ))
-        st.plotly_chart(fig_eq, use_container_width=True)
+        fig_waterfall.update_layout(title="Cascada de Potencia (Visual)", showlegend=False, height=600)
+        st.plotly_chart(fig_waterfall, use_container_width=True)
 
-# MÓDULO 3: LIQUIDEZ
-with tab3:
-    st.subheader("Indicadores de Caja")
-    col_a, col_b = st.columns(2)
-    with col_a:
-        st.metric("Razón Circulante", f"{razon_circulante:.2f}")
-        if razon_circulante < 1:
-            st.error("PELIGRO: Pasivos superan Activos a corto plazo.")
+# MÓDULO 2: SUPERVIVENCIA
+with tab2:
+    st.subheader("La Línea de Supervivencia")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric("Punto de Equilibrio ($)", f"${punto_equilibrio:,.2f}")
+        st.metric("Ventas Actuales", f"${ventas_actual:,.2f}")
+        
+        # Margen de Seguridad
+        if margen_seguridad > 0:
+            st.success(f"✅ Margen de Seguridad: ${margen_seguridad:,.2f}")
         else:
-            st.success("Solvencia adecuada.")
-    with col_b:
-        st.metric("Ciclo de Caja (CCC)", f"{ccc:.0f} días")
-        st.caption("Días que financias la operación.")
+            st.error(f"🚨 Faltan ${abs(margen_seguridad):,.2f} para no perder dinero.")
+            
+    with col2:
+        # Diagnóstico de Estratega
+        porcentaje_seguridad = (margen_seguridad / ventas_actual) * 100
+        st.write("#### 🧠 Interpretación de Estratega:")
+        
+        if porcentaje_seguridad < 10:
+             st.markdown("""<div class="alert-box alert-danger">
+            ⚠️ <strong>ZONA DE PELIGRO:</strong><br>
+            La brecha es pequeña (menor al 10%).<br>
+            <strong>Cualquier caída del mercado te quiebra.</strong></div>""", unsafe_allow_html=True)
+        else:
+             st.markdown("""<div class="alert-box alert-success">
+            ✅ <strong>ZONA SEGURA:</strong><br>
+            Tienes colchón para resistir caídas de ventas.</div>""", unsafe_allow_html=True)
 
-# --- GENERADOR DE REPORTE PDF V4 ---
-def create_pdf_v4():
+# MÓDULO 3: OXÍGENO
+with tab3:
+    st.subheader("El Ciclo de Conversión de Efectivo (CCC)")
+    st.write("Cómo desbloquear el dinero atrapado.")
+    
+    c1, c2, c3 = st.columns(3)
+    c1.metric("1. Días Calle (DSO)", f"{dias_calle:.0f} días")
+    c2.metric("2. Días Inventario (DIO)", f"{dias_inventario:.0f} días")
+    c3.metric("3. Días Proveedor (DPO)", f"{dias_proveedor:.0f} días")
+    
+    st.metric("Ciclo de Caja (CCC)", f"{ccc:.0f} días", delta_color="inverse")
+    
+    st.markdown("---")
+    st.write("#### 🔧 Las 3 Palancas de Rescate:")
+    
+    # Palanca 1
+    if dias_calle > 60:
+        st.warning(f"⚠️ **Problema (DSO):** Clientes pagan a {dias_calle:.0f} días.")
+        st.info("👉 **Solución:** Descuento por pronto pago (2% a 10 días) o Factoring.")
+    else:
+        st.success("✅ Cobranza eficiente.")
+        
+    # Palanca 2
+    if dias_inventario > 60:
+        st.warning(f"⚠️ **Problema (DIO):** Bodega llena ({dias_inventario:.0f} días). Producto no rota.")
+        st.info("👉 **Solución:** Remate de inventario muerto para hacer caja inmediata.")
+    else:
+        st.success("✅ Inventario rota bien.")
+        
+    # Palanca 3
+    if dias_proveedor < 30:
+        st.warning(f"⚠️ **Problema (DPO):** Pagas a {dias_proveedor:.0f} días (muy rápido).")
+        st.info("👉 **Solución:** Renegociar plazos más largos usando tu volumen de compra.")
+    else:
+        st.success("✅ Buen apalancamiento con proveedores.")
+
+# --- GENERADOR PDF (ACTUALIZADO CON 4 NIVELES) ---
+def create_pdf_strategic():
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", size=12)
     
     # Título
     pdf.set_font("Arial", "B", 16)
-    pdf.cell(0, 10, "SG CONSULTING | Reporte Estrategico", ln=True, align="C")
+    pdf.cell(0, 10, "SG CONSULTING | Diagnóstico de Potencia", ln=True, align="C")
     pdf.ln(5)
     
-    # Sección Tendencia
+    # Sección Cascada
     pdf.set_font("Arial", "B", 12)
-    pdf.cell(0, 10, f"1. ANALISIS DE TENDENCIA ({num_meses + 1} Meses)", ln=True, fill=False)
+    pdf.cell(0, 10, "1. LA CASCADA DE POTENCIA (4 NIVELES)", ln=True, fill=False)
     pdf.set_font("Arial", "", 11)
     
-    pdf.cell(0, 8, f"Crecimiento Ventas: {crecimiento_ventas:.1f}%", ln=True)
-    pdf.cell(0, 8, f"Crecimiento EBITDA: {crecimiento_ebitda:.1f}%", ln=True)
+    pdf.cell(0, 8, f"Nivel 1 (Comercial - Ut. Bruta): ${utilidad_bruta:,.2f}", ln=True)
+    pdf.cell(0, 8, f"Nivel 2 (Operativa - EBITDA): ${ebitda:,.2f}", ln=True)
+    pdf.cell(0, 8, f"Nivel 3 (Activos - EBIT): ${ebit:,.2f}", ln=True)
+    pdf.cell(0, 8, f"Nivel 4 (Patrimonial - Ut. Neta): ${utilidad_neta:,.2f}", ln=True)
     
-    if crecimiento_ventas > crecimiento_ebitda:
+    pdf.ln(5)
+    pdf.set_font("Arial", "B", 11)
+    pdf.cell(0, 10, "DIAGNOSTICO AUTOMATICO:", ln=True)
+    pdf.set_font("Arial", "", 10)
+    
+    if ebitda < 0:
         pdf.set_text_color(194, 24, 7)
-        pdf.multi_cell(0, 8, "ALERTA: Las ventas crecen mas rapido que la utilidad. El negocio pierde eficiencia operativa.")
+        pdf.multi_cell(0, 6, "ALERTA: EBITDA Negativo. Negocio enfermo de muerte. Requiere recortes inmediatos.")
+    elif ebitda > 0 and utilidad_neta < 0:
+        pdf.set_text_color(194, 24, 7)
+        pdf.multi_cell(0, 6, "ALERTA: Problema Financiero. EBIT positivo pero Neta negativa. Requiere reestructurar deuda.")
     else:
         pdf.set_text_color(0, 100, 0)
-        pdf.multi_cell(0, 8, "TENDENCIA POSITIVA: El negocio escala saludablemente, mejorando margenes.")
+        pdf.multi_cell(0, 6, "ESTADO: Negocio saludable en sus niveles de potencia.")
     
     pdf.set_text_color(0, 0, 0)
     pdf.ln(5)
     
-    # Sección Actual
+    # Sección Supervivencia
     pdf.set_font("Arial", "B", 12)
-    pdf.cell(0, 10, "2. ESTADO ACTUAL (Cierre de Mes)", ln=True)
+    pdf.cell(0, 10, "2. LINEA DE SUPERVIVENCIA", ln=True, fill=False)
     pdf.set_font("Arial", "", 11)
-    pdf.cell(0, 8, f"Ventas Actuales: ${ventas_actual:,.2f}", ln=True)
-    pdf.cell(0, 8, f"EBITDA Actual: ${ebitda_actual_calc:,.2f} ({margen_ebitda:.1f}%)", ln=True)
     pdf.cell(0, 8, f"Punto de Equilibrio: ${punto_equilibrio:,.2f}", ln=True)
-    
-    # Sección Liquidez
-    pdf.ln(5)
-    pdf.set_font("Arial", "B", 12)
-    pdf.cell(0, 10, "3. LIQUIDEZ Y SOLVENCIA", ln=True)
-    pdf.set_font("Arial", "", 11)
-    pdf.cell(0, 8, f"Razon Circulante: {razon_circulante:.2f}", ln=True)
-    pdf.cell(0, 8, f"Ciclo de Caja: {ccc:.0f} dias", ln=True)
-    
-    if razon_circulante < 1:
-         pdf.set_text_color(194, 24, 7)
-         # AQUÍ ESTABA EL ERROR: Texto largo corregido en una sola línea
-         pdf.multi_cell(0, 8, "RIESGO CRITICO: La empresa no tiene activos suficientes para cubrir sus deudas inmediatas.")
+    pdf.cell(0, 8, f"Margen de Seguridad: ${margen_seguridad:,.2f}", ln=True)
     
     pdf.ln(10)
     pdf.set_font("Arial", "I", 8)
-    pdf.cell(0, 10, "Generado por SG Rescue App - Uso Confidencial", ln=True, align="C")
+    pdf.cell(0, 10, "Generado por SG Rescue App", ln=True, align="C")
     
     return pdf.output(dest='S').encode('latin-1')
 
 st.sidebar.markdown("---")
-if st.sidebar.button("📄 Descargar Reporte Completo"):
-    pdf_bytes = create_pdf_v4()
-    st.sidebar.download_button("💾 Guardar PDF", data=pdf_bytes, file_name="Reporte_SG_Consulting.pdf", mime="application/pdf")
+if st.sidebar.button("📄 Descargar Diagnóstico Maestro"):
+    pdf_bytes = create_pdf_strategic()
+    st.sidebar.download_button("💾 Guardar PDF", data=pdf_bytes, file_name="Diagnostico_Potencia_SG.pdf", mime="application/pdf")
