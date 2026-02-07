@@ -1,3 +1,16 @@
+import os
+import subprocess
+import sys
+
+# Función para instalar paquetes automáticamente si faltan en la nube
+def install(package):
+    subprocess.check_call([sys.executable, "-m", "pip", "install", package])
+
+try:
+    import fpdf
+except ImportError:
+    install("fpdf")
+    import fpdf
 import streamlit as st
 import plotly.graph_objects as go
 import pandas as pd
@@ -346,3 +359,4 @@ if st.sidebar.button("Generar PDF de Diagnóstico"):
         file_name="Diagnostico_SG_Consulting.pdf",
         mime="application/pdf"
     )
+
