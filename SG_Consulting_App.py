@@ -1,19 +1,10 @@
-import os
-import subprocess
-import sys
-
-# Función para instalar paquetes automáticamente si faltan en la nube
-def install(package):
-    subprocess.check_call([sys.executable, "-m", "pip", "install", package])
-
-try:
-    import fpdf
-except ImportError:
-    install("fpdf")
-    import fpdf
 import streamlit as st
 import plotly.graph_objects as go
 import pandas as pd
+from fpdf import FPDF  # <--- Esto debe estar aquí arriba, sin try/except
+from datetime import datetime
+
+# ... resto del código ...
 
 # CONFIGURACIÓN DE LA PÁGINA
 st.set_page_config(page_title="SG Rescue | App de Diagnóstico", layout="wide")
@@ -359,4 +350,5 @@ if st.sidebar.button("Generar PDF de Diagnóstico"):
         file_name="Diagnostico_SG_Consulting.pdf",
         mime="application/pdf"
     )
+
 
