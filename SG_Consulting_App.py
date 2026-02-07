@@ -12,7 +12,7 @@ st.markdown("""
     .alert-danger { background-color: #ffebee; padding: 15px; border-radius: 5px; color: #c62828; border: 1px solid #c62828; font-weight: bold;}
     .alert-warning { background-color: #fff3e0; padding: 15px; border-radius: 5px; color: #ef6c00; border: 1px solid #ef6c00; font-weight: bold;}
     .alert-success { background-color: #e8f5e9; padding: 15px; border-radius: 5px; color: #2e7d32; border: 1px solid #2e7d32; font-weight: bold;}
-    .stTabs [data-baseweb="tab-list"] button [data-testid="stMarkdownContainer"] p { font-size: 1.2rem; }
+    .recommendation-box { background-color: #e3f2fd; padding: 15px; border-radius: 5px; border-left: 5px solid #2196f3; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -22,26 +22,30 @@ st.markdown("**Metodología de Intervención Estratégica para PyMEs**")
 
 # --- INPUTS GLOBALES (BARRA LATERAL) ---
 with st.sidebar:
-    st.header("1. Datos Financieros (Estado de Resultados)")
-    st.info("Ingresa los datos mensuales o anuales.")
+    st.header("1. Estado de Resultados (Anual)")
+    ventas = st.number_input("Ventas Totales ($)", min_value=0.0, value=500000.0, step=1000.0)
+    costo_ventas = st.number_input("Costo de Ventas (COGS) ($)", min_value=0.0, value=300000.0, step=1000.0)
+    gastos_operativos = st.number_input("Gastos Operativos (OPEX) ($)", min_value=0.0, value=130000.0, step=500.0)
+    depreciacion = st.number_input("Depreciaciones ($)", min_value=0.0, value=15000.0, step=100.0)
+    intereses = st.number_input("Gastos Financieros ($)", min_value=0.0, value=5000.0, step=100.0)
+    impuestos = st.number_input("Impuestos ($)", min_value=0.0, value=12500.0, step=100.0)
     
-    ventas = st.number_input("Ventas Totales ($)", min_value=0.0, value=50000.0, step=1000.0)
-    costo_ventas = st.number_input("Costo de Ventas (COGS) ($)", min_value=0.0, value=30000.0, step=1000.0)
-    gastos_operativos = st.number_input("Gastos Operativos (OPEX) ($)", min_value=0.0, value=15000.0, step=500.0)
-    depreciacion = st.number_input("Depreciaciones ($)", min_value=0.0, value=1500.0, step=100.0)
-    intereses = st.number_input("Gastos Financieros ($)", min_value=0.0, value=500.0, step=100.0)
-    impuestos = st.number_input("Impuestos ($)", min_value=0.0, value=1250.0, step=100.0)
+    st.markdown("---")
+    st.header("2. Balance General (Actual)")
+    st.info("Datos clave para el Flujo de Caja")
+    cuentas_por_cobrar = st.number_input("Cuentas por Cobrar ($)", min_value=0.0, value=50000.0, step=500.0, help="Dinero que te deben los clientes.")
+    inventario = st.number_input("Valor del Inventario ($)", min_value=0.0, value=60000.0, step=500.0, help="Mercancía parada en bodega.")
+    cuentas_por_pagar = st.number_input("Cuentas por Pagar ($)", min_value=0.0, value=25000.0, step=500.0, help="Dinero que debes a proveedores.")
 
 # --- PESTAÑAS DE MÓDULOS ---
-tab1, tab2 = st.tabs(["Módulo 1: Potencia (EBITDA)", "Módulo 2: Supervivencia (Punto de Equilibrio)"])
+tab1, tab2, tab3 = st.tabs(["Módulo 1: Potencia (EBITDA)", "Módulo 2: Supervivencia (PE)", "Módulo 3: Oxígeno (Flujo de Caja)"])
 
 # ==========================================
 # MÓDULO 1: LA CASCADA DE POTENCIA
 # ==========================================
 with tab1:
     st.subheader("💧 Análisis de Rentabilidad en Cascada")
-    
-    # Cálculos Módulo 1
+    # Cálculos
     utilidad_bruta = ventas - costo_ventas
     ebitda = utilidad_bruta - gastos_operativos
     margen_ebitda = (ebitda / ventas) * 100 if ventas > 0 else 0
@@ -49,14 +53,12 @@ with tab1:
     utilidad_neta = ebit - intereses - impuestos
     
     col1, col2 = st.columns([2, 1])
-    
     with col1:
-        # Gráfico Cascada
         fig_waterfall = go.Figure(go.Waterfall(
             name = "Flujo", orientation = "v",
             measure = ["relative", "relative", "subtotal", "relative", "subtotal", "relative", "total"],
             x = ["Ventas", "Costo Ventas", "Utilidad Bruta", "Gastos Op.", "EBITDA", "Otros Gastos", "Utilidad Neta"],
-            text = [f"${x:,.0f}" for x in [ventas, -costo_ventas, utilidad_bruta, -gastos_operativos, ebitda, -(depreciacion+intereses+impuestos), utilidad_neta]],
+            text = [f"${x/1000:.1f}k" for x in [ventas, -costo_ventas, utilidad_bruta, -gastos_operativos, ebitda, -(depreciacion+intereses+impuestos), utilidad_neta]],
             y = [ventas, -costo_ventas, utilidad_bruta, -gastos_operativos, ebitda, -(depreciacion+intereses+impuestos), utilidad_neta],
             connector = {"line":{"color":"rgb(63, 63, 63)"}},
             decreasing = {"marker":{"color":"#ef5350"}},
@@ -67,137 +69,135 @@ with tab1:
         st.plotly_chart(fig_waterfall, use_container_width=True)
 
     with col2:
-        # Tarjetas de KPI
-        st.markdown(f"""
-        <div class="metric-card">
-            <h4>EBITDA (Caja Operativa)</h4>
-            <h2 style="color: {'#2e7d32' if ebitda > 0 else '#c62828'}">${ebitda:,.2f}</h2>
-            <p>Margen: <strong>{margen_ebitda:.1f}%</strong></p>
-        </div>
-        <br>
-        """, unsafe_allow_html=True)
-        
-        # Diagnóstico Rápido Texto
+        st.metric(label="EBITDA (Caja Operativa)", value=f"${ebitda:,.0f}", delta=f"{margen_ebitda:.1f}% Margen")
         if ebitda < 0:
-            st.error("🚨 CRÍTICO: El negocio quema efectivo en su operación diaria.")
+            st.error("🚨 CRÍTICO: El negocio quema efectivo.")
         elif margen_ebitda < 10:
-            st.warning("⚠️ ALERTA: Margen operativo muy bajo. Vulnerable.")
+            st.warning("⚠️ ALERTA: Margen operativo muy bajo.")
         else:
-            st.success("✅ SÓLIDO: La operación es saludable.")
+            st.success("✅ SÓLIDO: Operación saludable.")
 
 # ==========================================
-# MÓDULO 2: PUNTO DE EQUILIBRIO (NUEVO)
+# MÓDULO 2: PUNTO DE EQUILIBRIO
 # ==========================================
 with tab2:
     st.subheader("⚖️ La Línea de Supervivencia")
-    st.markdown("Calcula cuánto necesitas vender para cubrir todos tus costos (Utilidad = 0).")
+    # Cálculos
+    costo_variable_total = costo_ventas # Simplificación para el modelo
+    costos_fijos_totales = gastos_operativos + intereses
+    margen_contribucion_pct = (ventas - costo_variable_total) / ventas if ventas > 0 else 0
     
-    # 1. CLASIFICACIÓN DE COSTOS (INPUTS ESPECÍFICOS MÓDULO 2)
-    with st.expander("🛠️ Paso 1: Clasificar Costos (Fijos vs. Variables)", expanded=True):
-        col_a, col_b = st.columns(2)
-        with col_a:
-            st.markdown("##### Costos Variables")
-            st.caption("Cambian si vendes más (Materia prima, comisiones, envíos).")
-            # Por defecto asumimos que el Costo de Ventas es 100% Variable
-            costo_variable_total = st.number_input("Total Costos Variables ($)", value=costo_ventas, step=500.0, help="Usualmente es el Costo de Ventas + Comisiones de venta.")
-        
-        with col_b:
-            st.markdown("##### Costos Fijos Totales")
-            st.caption("No cambian si vendes cero (Alquiler, Nómina fija, Internet).")
-            # Por defecto asumimos que Gastos Op + Intereses son Fijos
-            costo_fijo_estimado = gastos_operativos + intereses
-            costos_fijos_totales = st.number_input("Total Costos Fijos ($)", value=costo_fijo_estimado, step=500.0)
-
-    # 2. CÁLCULOS
-    if ventas > 0:
-        # Margen de Contribución Global (%) = (Ventas - Costos Variables) / Ventas
-        margen_contribucion_pct = (ventas - costo_variable_total) / ventas
-        
-        # Fórmula Maestra Punto de Equilibrio ($) = Costos Fijos / Margen Contribución %
-        if margen_contribucion_pct > 0:
-            punto_equilibrio = costos_fijos_totales / margen_contribucion_pct
-        else:
-            punto_equilibrio = 0 # Evitar división por cero si margen es negativo
-            
-        # Margen de Seguridad (%) = (Ventas Reales - PE) / Ventas Reales
-        margen_seguridad = ((ventas - punto_equilibrio) / ventas) * 100
+    if margen_contribucion_pct > 0:
+        punto_equilibrio = costos_fijos_totales / margen_contribucion_pct
     else:
         punto_equilibrio = 0
-        margen_seguridad = 0
+            
+    margen_seguridad = ((ventas - punto_equilibrio) / ventas) * 100 if ventas > 0 else 0
 
-    st.markdown("---")
-    
-    # 3. VISUALIZACIÓN Y DIAGNÓSTICO
-    col_x, col_y = st.columns([1, 1])
-    
+    col_x, col_y = st.columns(2)
     with col_x:
-        st.markdown(f"### Tu Punto de Equilibrio es: **${punto_equilibrio:,.2f}**")
-        st.markdown(f"Ventas Actuales: **${ventas:,.2f}**")
-        
-        delta = ventas - punto_equilibrio
-        if delta > 0:
-             st.success(f"✅ Estás **${delta:,.2f}** por ENCIMA del punto de equilibrio.")
+        st.metric("Punto de Equilibrio ($)", f"${punto_equilibrio:,.2f}")
+        if ventas < punto_equilibrio:
+             st.error(f"🚨 Estás perdiendo dinero. Faltan ${punto_equilibrio - ventas:,.0f} para cubrir costos.")
         else:
-             st.error(f"🚨 Estás **${abs(delta):,.2f}** por DEBAJO. Estás perdiendo dinero.")
-
-        # Explicación para el cliente
-        st.info(f"""
-        **Interpretación para el Cliente:**
-        "Para no perder ni ganar un centavo, su empresa necesita facturar **${punto_equilibrio:,.0f}**. 
-        Todo lo que venda por encima de eso es ganancia; todo lo que venda por debajo sale de su bolsillo."
-        """)
+             st.success(f"✅ Cubres costos y ganas dinero.")
 
     with col_y:
-        # Gráfico de Velocímetro (Gauge Chart) para Margen de Seguridad
-        color_gauge = "red"
-        if margen_seguridad > 20: color_gauge = "green"
-        elif margen_seguridad > 10: color_gauge = "orange"
-        
         fig_gauge = go.Figure(go.Indicator(
-            mode = "gauge+number+delta",
-            value = margen_seguridad,
+            mode = "gauge+number", value = margen_seguridad,
             title = {'text': "Margen de Seguridad (%)"},
-            delta = {'reference': 10, 'increasing': {'color': "green"}},
-            gauge = {
-                'axis': {'range': [-50, 100]},
-                'bar': {'color': color_gauge},
-                'steps': [
-                    {'range': [-50, 0], 'color': "#ffcdd2"}, # Zona Pérdida
-                    {'range': [0, 10], 'color': "#fff9c4"},  # Zona Peligro
-                    {'range': [10, 100], 'color': "#c8e6c9"} # Zona Seguridad
-                ],
-                'threshold': {
-                    'line': {'color': "red", 'width': 4},
-                    'thickness': 0.75,
-                    'value': 10
-                }
-            }
+            gauge = {'axis': {'range': [-50, 100]}, 'bar': {'color': "green" if margen_seguridad > 10 else "red"}}
         ))
-        fig_gauge.update_layout(height=300)
+        fig_gauge.update_layout(height=250)
         st.plotly_chart(fig_gauge, use_container_width=True)
 
-    # 4. ALERTA DEL MANUAL (SOURCE 2)
-    st.write("#### 🧠 Diagnóstico Estratégico:")
-    if margen_seguridad < 10:
-        st.markdown("""
-        <div class="alert-danger">
-        <strong>⚠️ ZONA DE PELIGRO INMINENTE:</strong><br>
-        Su Margen de Seguridad es inferior al 10%. Según el Manual de SG Consulting, esto significa que 
-        <em>"Cualquier gripe del mercado (una huelga, una pandemia, un mal mes) mata a la empresa"</em>. 
-        <br><strong>Acción Recomendada:</strong> Necesitamos reducir los Costos Fijos YA.
-        </div>
-        """, unsafe_allow_html=True)
-    elif margen_seguridad < 25:
-        st.markdown("""
-        <div class="alert-warning">
-        <strong>⚠️ ZONA DE PRECAUCIÓN:</strong><br>
-        La empresa cubre sus costos, pero tiene poco espacio para maniobrar. No asuma nuevas deudas fijas.
-        </div>
-        """, unsafe_allow_html=True)
-    else:
-        st.markdown("""
-        <div class="alert-success">
-        <strong>✅ ZONA DE SEGURIDAD:</strong><br>
-        La empresa tiene un colchón saludable para resistir crisis.
-        </div>
-        """, unsafe_allow_html=True)
+# ==========================================
+# MÓDULO 3: EL OXÍGENO (FLUJO DE CAJA) - NUEVO
+# ==========================================
+with tab3:
+    st.subheader("🫁 El Oxígeno del Negocio (Ciclo de Conversión de Efectivo)")
+    st.markdown("Diagnóstico de Liquidez: ¿Por qué no tengo dinero en el banco?")
+    
+    # --- CÁLCULOS DEL TRIÁNGULO DE PODER ---
+    # Días Calle (DSO) = (CXC / Ventas) * 365
+    dias_calle = (cuentas_por_cobrar / ventas) * 365 if ventas > 0 else 0
+    
+    # Días Inventario (DIO) = (Inventario / Costo Ventas) * 365
+    dias_inventario = (inventario / costo_ventas) * 365 if costo_ventas > 0 else 0
+    
+    # Días Proveedor (DPO) = (CXP / Costo Ventas) * 365
+    dias_proveedor = (cuentas_por_pagar / costo_ventas) * 365 if costo_ventas > 0 else 0
+    
+    # Ciclo de Conversión de Efectivo (CCC)
+    ciclo_efectivo = dias_calle + dias_inventario - dias_proveedor
+
+    # --- VISUALIZACIÓN DE MÉTRICAS ---
+    col3, col4, col5, col6 = st.columns(4)
+    with col3:
+        st.metric("Días Calle (Cobro)", f"{dias_calle:.0f} días", help="Tiempo que tardas en cobrar a clientes.")
+    with col4:
+        st.metric("Días Inventario", f"{dias_inventario:.0f} días", help="Tiempo que la mercancía está parada.")
+    with col5:
+        st.metric("Días Proveedor (Pago)", f"{dias_proveedor:.0f} días", help="Tiempo que tardas en pagar proveedores.")
+    with col6:
+        st.metric("Ciclo de Caja (CCC)", f"{ciclo_efectivo:.0f} días", 
+                 delta_color="inverse", delta=f"{'⚠️ ALERTA' if ciclo_efectivo > 0 else '✅ EXCELENTE'}")
+
+    st.markdown("---")
+
+    # --- GRÁFICO COMPARATIVO ---
+    col_chart, col_diag = st.columns([1, 1])
+    
+    with col_chart:
+        # Gráfico de barras horizontales para comparar tiempos
+        fig_cash = go.Figure()
+        fig_cash.add_trace(go.Bar(
+            y=['Días Calle (Cobro)', 'Días Inventario', 'Ciclo Total (Financiamiento)'],
+            x=[dias_calle, dias_inventario, ciclo_efectivo],
+            name='Tu Dinero Atrapado', orientation='h', marker_color='#ef5350'
+        ))
+        fig_cash.add_trace(go.Bar(
+            y=['Días Proveedor (Pago)'],
+            x=[dias_proveedor],
+            name='Financiamiento Proveedor', orientation='h', marker_color='#66bb6a'
+        ))
+        fig_cash.update_layout(title="Tu Dinero vs. Dinero del Proveedor", barmode='group')
+        st.plotly_chart(fig_cash, use_container_width=True)
+
+    # --- DIAGNÓSTICO INTELIGENTE Y RECOMENDACIONES ---
+    with col_diag:
+        st.subheader("🩺 Diagnóstico de Liquidez")
+        
+        # Regla Maestra: (Calle + Inventario) > Proveedor
+        tiempo_recuperacion = dias_calle + dias_inventario
+        
+        if tiempo_recuperacion > dias_proveedor:
+            brecha = tiempo_recuperacion - dias_proveedor
+            st.markdown(f"""
+            <div class="alert-danger">
+            <strong>🚨 ALERTA DE AHOGO FINANCIERO</strong><br>
+            Tardas <strong>{tiempo_recuperacion:.0f} días</strong> en recuperar tu dinero, pero debes pagar en <strong>{dias_proveedor:.0f} días</strong>.
+            <br><br>
+            Tienes una <strong>Brecha de {brecha:.0f} días</strong> que estás financiando con tu propio bolsillo (o deuda bancaria).
+            </div>
+            """, unsafe_allow_html=True)
+            
+            st.markdown("#### 💊 Receta de Intervención (SG Consulting):")
+            
+            # Recomendaciones dinámicas según dónde esté el problema
+            if dias_calle > 45:
+                st.info("📉 **Problema: Cobras muy lento.**\n\n*Acción:* Implementa descuento por pronto pago (ej. 2% a 10 días) o usa Factoring.")
+            
+            if dias_inventario > 60:
+                st.info("📦 **Problema: Inventario estancado.**\n\n*Acción:* Haz un 'Remate de Inventario Muerto' para liberar efectivo ya.")
+            
+            if dias_proveedor < 30:
+                st.info("🤝 **Problema: Pagas muy rápido.**\n\n*Acción:* Negocia con proveedores pagar a 45 o 60 días.")
+                
+        else:
+            st.markdown(f"""
+            <div class="alert-success">
+            <strong>✅ NIRVANA FINANCIERO</strong><br>
+            ¡Felicidades! Cobras y vendes antes de tener que pagar. Estás trabajando con el dinero de tus proveedores (Ciclo Negativo o financiado).
+            </div>
+            """, unsafe_allow_html=True)
