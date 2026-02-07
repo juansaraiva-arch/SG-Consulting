@@ -161,7 +161,10 @@ with tab2:
         st.metric("Ventas Actuales", f"${ventas_actual:,.0f}")
         st.metric("Punto de Equilibrio", f"${punto_equilibrio:,.0f}")
         
-        pct_meta = (ventas_actual / punto_equilibrio) * 100 if punto_equilibrio > 0 else 0
+        if punto_equilibrio > 0:
+            pct_meta = (ventas_actual / punto_equilibrio) * 100
+        else:
+            pct_meta = 0
         
         if ventas_actual > punto_equilibrio:
             st.success(f"Cubres costos al {pct_meta:.0f}%")
@@ -242,4 +245,16 @@ def create_pdf_v4():
     
     if razon_circulante < 1:
          pdf.set_text_color(194, 24, 7)
-         pdf.multi_cell(0, 8, "RIESGO CRITICO: La empresa no tiene activos suficientes para cubrir sus de
+         # AQUÍ ESTABA EL ERROR: Texto largo corregido en una sola línea
+         pdf.multi_cell(0, 8, "RIESGO CRITICO: La empresa no tiene activos suficientes para cubrir sus deudas inmediatas.")
+    
+    pdf.ln(10)
+    pdf.set_font("Arial", "I", 8)
+    pdf.cell(0, 10, "Generado por SG Rescue App - Uso Confidencial", ln=True, align="C")
+    
+    return pdf.output(dest='S').encode('latin-1')
+
+st.sidebar.markdown("---")
+if st.sidebar.button("📄 Descargar Reporte Completo"):
+    pdf_bytes = create_pdf_v4()
+    st.sidebar.download_button("💾 Guardar PDF", data=pdf_bytes, file_name="Reporte_SG_Consulting.pdf", mime="application/pdf")
