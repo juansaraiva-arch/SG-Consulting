@@ -76,94 +76,96 @@ st.title("🚀 SG Consulting | Strategic Dashboard")
 st.markdown("Diagnóstico basado en **La Cascada de Potencia**, **Semáforos de Eficiencia** y **Valoración Patrimonial**")
 
 # --- BARRA LATERAL: INPUT DE VARIABLES ---
-# --- LÓGICA DE NORMALIZACIÓN (EL PUENTE ENTRE SIDEBAR Y TABS) ---
-# Detectamos si el usuario eligió Modo Anual para dividir entre 12
-if 'modo_analisis' in locals() and "Anual" in modo_analisis:
-    divisor = 12
-    st.sidebar.success("✅ Modo Anual: Datos convertidos a promedio mensual.")
-else:
-    divisor = 1
-
-# 1. Normalización de P&L (Todo a Base Mensual para evitar errores)
-# Si no existen las variables _input (por si acaso), usamos valores por defecto
-try:
-    ventas_mes = ventas_input / divisor
-    costo_ventas_mes = costo_ventas_input / divisor
-    gasto_alquiler_mes = gasto_alquiler_input / divisor
-    gasto_planilla_mes = gasto_planilla_input / divisor
-    gasto_otros_mes = gasto_otros_input / divisor
+with st.sidebar:
+    st.header("1. Datos Financieros (Mes Actual)")
     
-    depreciacion_mes = depreciacion_input / divisor
-    intereses_mes = intereses_input / divisor
-    impuestos_mes = impuestos_input / divisor
-except NameError:
-    # Fallback de seguridad si la barra lateral no se actualizó bien
-    ventas_mes = ventas_actual if 'ventas_actual' in locals() else 50000
-    costo_ventas_mes = costo_ventas if 'costo_ventas' in locals() else 30000
-    gasto_alquiler_mes = gasto_alquiler if 'gasto_alquiler' in locals() else 5000
-    gasto_planilla_mes = gasto_planilla if 'gasto_planilla' in locals() else 8000
-    gasto_otros_mes = gasto_otros if 'gasto_otros' in locals() else 2000
-    depreciacion_mes = 2000
-    intereses_mes = 1000
-    impuestos_mes = 1500
+    with st.expander("A. Estado de Resultados (Desglosado)", expanded=True):
+        st.info("Ingresa los datos para calcular los Niveles de Potencia y Eficiencia.")
+        ventas_actual = st.number_input("Ventas Totales ($)", value=50000.0, step=1000.0)
+        costo_ventas = st.number_input("Costo de Ventas (Variable)", value=30000.0, step=1000.0, help="Materia prima, comisiones, costo directo.")
+        
+        st.markdown("---")
+        st.markdown("**Desglose de Gastos Operativos (OPEX):**")
+        # DESGLOSE CLAVE PARA LOS RATIOS
+        gasto_alquiler = st.number_input("1. Alquiler + Mantenimiento (CAM)", value=5000.0, step=100.0, help="Renta del local y cuotas de mantenimiento.")
+        gasto_planilla = st.number_input("2. Planilla / Nómina Total", value=8000.0, step=500.0, help="Sueldos administrativos y operativos fijos.")
+        gasto_otros = st.number_input("3. Otros Gastos Operativos", value=2000.0, step=100.0, help="Luz, agua, internet, marketing, etc.")
+        
+        # CÁLCULO AUTO DE OPEX TOTAL
+        gastos_operativos = gasto_alquiler + gasto_planilla + gasto_otros
+        st.write(f"**Total OPEX:** ${gastos_operativos:,.2f}")
+        st.markdown("---")
 
-gastos_operativos_mes = gasto_alquiler_mes + gasto_planilla_mes + gasto_otros_mes
+        depreciacion = st.number_input("Depreciaciones + Amortizaciones", value=2000.0, step=100.0)
+        intereses = st.number_input("Intereses (Gastos Financieros)", value=1000.0, step=100.0)
+        impuestos = st.number_input("Impuestos", value=1500.0, step=100.0)
 
-# --- CÁLCULOS PRINCIPALES (AHORA SÍ GENERA LAS VARIABLES _mes) ---
+    with st.expander("B. Balance General (Para Flujo de Caja)", expanded=False):
+        inventario = st.number_input("Inventario ($)", value=20000.0)
+        cuentas_cobrar = st.number_input("Cuentas por Cobrar ($)", value=15000.0)
+        cuentas_pagar = st.number_input("Cuentas por Pagar ($)", value=10000.0)
+        
+    # --- NUEVO INPUT: VALORACIÓN ---
+    with st.expander("C. Valoración de Negocio (Nuevo)", expanded=True):
+        st.markdown("**El Legado:**")
+        multiplo_industria = st.slider("Múltiplo EBITDA (Industria)", 2.0, 6.0, 3.0, 0.5, help="Por cuántos años de utilidad se vende una empresa en tu sector.")
 
-# A. Potencia
-utilidad_bruta_mes = ventas_mes - costo_ventas_mes
-margen_bruto = (utilidad_bruta_mes / ventas_mes) * 100 if ventas_mes > 0 else 0
+# --- CÁLCULOS PRINCIPALES (MANTENIENDO TODOS LOS ANTERIORES) ---
 
-ebitda_mes = utilidad_bruta_mes - gastos_operativos_mes
-margen_ebitda = (ebitda_mes / ventas_mes) * 100 if ventas_mes > 0 else 0
+# NIVEL 1: Potencia Comercial
+utilidad_bruta = ventas_actual - costo_ventas
+margen_bruto = (utilidad_bruta / ventas_actual) * 100 if ventas_actual > 0 else 0
 
-ebit_mes = ebitda_mes - depreciacion_mes
-utilidad_neta_mes = ebit_mes - intereses_mes - impuestos_mes
-margen_neto = (utilidad_neta_mes / ventas_mes) * 100 if ventas_mes > 0 else 0
+# NIVEL 2: Potencia Operativa
+ebitda = utilidad_bruta - gastos_operativos
+margen_ebitda = (ebitda / ventas_actual) * 100 if ventas_actual > 0 else 0
 
-# B. Ratios Eficiencia
-ratio_alquiler = (gasto_alquiler_mes / ventas_mes) * 100 if ventas_mes > 0 else 0
-ratio_planilla = (gasto_planilla_mes / utilidad_bruta_mes) * 100 if utilidad_bruta_mes > 0 else 0
+# NIVEL 3 & 4
+ebit = ebitda - depreciacion
+margen_ebit = (ebit / ventas_actual) * 100 if ventas_actual > 0 else 0
+utilidad_neta = ebit - intereses - impuestos
+margen_neto = (utilidad_neta / ventas_actual) * 100 if ventas_actual > 0 else 0
 
-# C. Supervivencia
-costos_fijos_totales_mes = gastos_operativos_mes + intereses_mes
-margen_contribucion_pct = (utilidad_bruta_mes / ventas_mes) if ventas_mes > 0 else 0
-punto_equilibrio_mes = costos_fijos_totales_mes / margen_contribucion_pct if margen_contribucion_pct > 0 else 0
-margen_seguridad_mes = ventas_mes - punto_equilibrio_mes
+# CÁLCULOS DE RATIOS DE EFICIENCIA
+ratio_alquiler = (gasto_alquiler / ventas_actual) * 100 if ventas_actual > 0 else 0
+ratio_planilla = (gasto_planilla / utilidad_bruta) * 100 if utilidad_bruta > 0 else 0
 
-# D. Oxígeno (CCC)
-# Usamos saldos finales (no se dividen)
-inv_final = inventario if 'inventario' in locals() else 20000
-cxc_final = cuentas_cobrar if 'cuentas_cobrar' in locals() else 15000
-cxp_final = cuentas_pagar if 'cuentas_pagar' in locals() else 10000
+# Puntos de Equilibrio y Caja
+costos_fijos_totales = gastos_operativos + intereses 
+margen_contribucion_pct = (utilidad_bruta / ventas_actual) if ventas_actual > 0 else 0
+punto_equilibrio = costos_fijos_totales / margen_contribucion_pct if margen_contribucion_pct > 0 else 0
+margen_seguridad = ventas_actual - punto_equilibrio
 
-dias_calle = (cxc_final / ventas_mes) * 30 if ventas_mes > 0 else 0
-dias_inventario = (inv_final / costo_ventas_mes) * 30 if costo_ventas_mes > 0 else 0
-dias_proveedor = (cxp_final / costo_ventas_mes) * 30 if costo_ventas_mes > 0 else 0
+# CCC (Días)
+dias_calle = (cuentas_cobrar / ventas_actual) * 30 if ventas_actual > 0 else 0
+dias_inventario = (inventario / costo_ventas) * 30 if costo_ventas > 0 else 0
+dias_proveedor = (cuentas_pagar / costo_ventas) * 30 if costo_ventas > 0 else 0
 ccc = dias_calle + dias_inventario - dias_proveedor
 
-dinero_atrapado_total = cxc_final + inv_final
+# --- NUEVOS CÁLCULOS: VALORACIÓN Y DINERO ATRAPADO ---
+# Valoración Actual (Anualizada)
+valor_empresa_actual = ebitda * 12 * multiplo_industria if ebitda > 0 else 0
 
-# E. Valoración Base (Para que Tab 1 no falle)
-valor_empresa_actual = (ebitda_mes * 12) * 3 if ebitda_mes > 0 else 0
+# Dinero Atrapado
+dinero_atrapado_total = cuentas_cobrar + inventario
 
-# --- EL JUEZ DIGITAL ---
+# --- EL JUEZ DIGITAL: LOGICA DE VEREDICTO AUTOMÁTICO ---
 veredicto_final = ""
 icono_veredicto = "⚖️"
 
-if ebitda_mes < 0:
-    veredicto_final = "INTERVENCIÓN DE EMERGENCIA NECESARIA. El modelo de negocio está consumiendo capital."
+if ebitda < 0:
+    veredicto_final = "INTERVENCIÓN DE EMERGENCIA NECESARIA. El modelo de negocio está consumiendo capital. Su problema no es de ventas, es estructural. Se requiere corte inmediato de gastos (Cirugía Mayor)."
     icono_veredicto = "🚨"
 elif ccc > 60:
-    veredicto_final = "SÍNDROME DE 'AGUJERO NEGRO'. Rentable pero insolvente. Prioridad: COBRAR."
+    veredicto_final = "SÍNDROME DE 'AGUJERO NEGRO'. Su empresa es rentable (EBITDA Positivo) pero insolvente. Estás financiando a tus clientes con tu propio sudor. Tu prioridad #1 no es vender, es COBRAR."
     icono_veredicto = "🕳️"
 elif ratio_alquiler > 15:
-    veredicto_final = "RIESGO INMOBILIARIO. Estás trabajando para pagar el local."
+    veredicto_final = "RIESGO INMOBILIARIO. Estás trabajando para pagar el local. Tu estructura de costos fijos es demasiado pesada para tu nivel de ventas actual."
     icono_veredicto = "🏢"
 else:
-    veredicto_final = "EMPRESA SALUDABLE Y ESCALABLE. Listo para crecer."
+    veredicto_final = "EMPRESA SALUDABLE Y ESCALABLE. Tienes control operativo y flujo de caja. Estás listo para invertir en crecimiento o preparar una venta estratégica."
     icono_veredicto = "✅"
+
 
 # --- DASHBOARD VISUAL ---
 
@@ -176,24 +178,23 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # TABS PRINCIPALES
-tab1, tab2, tab3, tab4, tab5 = st.tabs(["💎 Cascada & Valoración", "🚦 Semáforo & Simulador", "⚖️ Supervivencia", "🫁 Oxígeno & Dinero Atrapado", "📈 Valoración de Mercado"])
+tab1, tab2, tab3, tab4 = st.tabs(["💎 Cascada & Valoración", "🚦 Semáforo & Simulador", "⚖️ Supervivencia", "🫁 Oxígeno & Dinero Atrapado"])
 
+# MÓDULO 1: CASCADA DE POTENCIA + VALORACIÓN (ACTUALIZADO)
+# --- REEMPLAZA TODO EL BLOQUE 'with tab1:' CON ESTO ---
 
-# MÓDULO 1: CASCADA DE POTENCIA (CORREGIDO)
 with tab1:
     col_main, col_chart = st.columns([1.2, 1])
     
     with col_main:
-        # --- 1. SECCIÓN VALORACIÓN BASE (CORREGIDA) ---
+        # --- 1. SECCIÓN VALORACIÓN (NUEVA - LA MANTENEMOS) ---
         st.markdown("### 🏆 Valoración Patrimonial")
-        
-        # Aquí estaba el error. Ahora usamos texto fijo porque la variable ya no existe en sidebar.
         if valor_empresa_actual > 0:
             st.markdown(f"""
             <div class="valuation-box">
-                <h4>Valor Ref. de la Empresa (Base 3x):</h4>
+                <h4>Valor Actual de la Empresa:</h4>
                 <h1 style="color: #1b5e20;">${valor_empresa_actual:,.2f}</h1>
-                <p>Basado en 3.0x EBITDA Anual. <br><em>(Ve a la Pestaña 5 para personalizar el múltiplo)</em></p>
+                <p>Basado en {multiplo_industria}x EBITDA Anual.</p>
             </div>
             """, unsafe_allow_html=True)
         else:
@@ -201,38 +202,38 @@ with tab1:
             
         st.markdown("---")
         
-        # --- 2. SECCIÓN POTENCIA (DISEÑO FOTO) ---
+        # --- 2. SECCIÓN POTENCIA (RESTAURAMOS EL DISEÑO DE LA FOTO) ---
         st.subheader("Diagnóstico de los 4 Niveles de Potencia")
         
-        # NIVEL 1
+        # NIVEL 1: POTENCIA COMERCIAL
         st.markdown('<div class="power-level-title">Nivel 1: Potencia Comercial (Utilidad Bruta)</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="power-value">${utilidad_bruta_mes:,.2f} (Margen: {margen_bruto:.1f}%)</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="power-value">${utilidad_bruta:,.2f} (Margen: {margen_bruto:.1f}%)</div>', unsafe_allow_html=True)
         
         if margen_bruto > 30:
             st.markdown('<div class="check-box-success">✅ Modelo de precios y proveedores saludable.</div>', unsafe_allow_html=True)
         else:
             st.markdown('<div class="check-box-warning">⚠️ Margen bajo. Revisa precios o costo de compra.</div>', unsafe_allow_html=True)
 
-        # NIVEL 2
+        # NIVEL 2: POTENCIA OPERATIVA (EL CORAZÓN)
         st.markdown('<div class="power-level-title">Nivel 2: Potencia Operativa (EBITDA) - El Corazón</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="power-value">${ebitda_mes:,.2f} (Margen: {margen_ebitda:.1f}%)</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="power-value">${ebitda:,.2f} (Margen: {margen_ebitda:.1f}%)</div>', unsafe_allow_html=True)
 
-        if ebitda_mes > 0 and margen_ebitda > 10:
+        if ebitda > 0 and margen_ebitda > 10:
              st.markdown('<div class="check-box-success">✅ El corazón del negocio late fuerte. La operación genera dinero puro.</div>', unsafe_allow_html=True)
-        elif ebitda_mes > 0:
+        elif ebitda > 0:
              st.markdown('<div class="check-box-warning">⚠️ Genera dinero pero es vulnerable (Margen < 10%).</div>', unsafe_allow_html=True)
         else:
              st.markdown('<div class="check-box-danger">🚨 ALERTA ROJA: El negocio quema efectivo.</div>', unsafe_allow_html=True)
 
-        # NIVEL 3
+        # NIVEL 3: POTENCIA DE ACTIVOS
         st.markdown('<div class="power-level-title">Nivel 3: Potencia de Activos (EBIT)</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="power-value">${ebit_mes:,.2f}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="power-value">${ebit:,.2f} (Margen: {margen_ebit:.1f}%)</div>', unsafe_allow_html=True)
 
-        # NIVEL 4
+        # NIVEL 4: POTENCIA PATRIMONIAL
         st.markdown('<div class="power-level-title">Nivel 4: Potencia Patrimonial (Utilidad Neta)</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="power-value">${utilidad_neta_mes:,.2f} (Margen: {margen_neto:.1f}%)</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="power-value">${utilidad_neta:,.2f} (Margen: {margen_neto:.1f}%)</div>', unsafe_allow_html=True)
         
-        if utilidad_neta_mes > 0:
+        if utilidad_neta > 0:
              st.markdown('<div class="check-box-success">✅ Potencia Patrimonial positiva. El dueño gana dinero.</div>', unsafe_allow_html=True)
         else:
              st.markdown('<div class="check-box-danger">🚨 El dueño pierde dinero (Revisar Deuda/Impuestos).</div>', unsafe_allow_html=True)
@@ -242,15 +243,14 @@ with tab1:
             name = "20", orientation = "v",
             measure = ["relative", "relative", "subtotal", "relative", "relative", "relative", "subtotal", "relative", "total"],
             x = ["Ventas", "Costo Ventas", "Ut. Bruta", "Alquiler", "Planilla", "Otros Gastos", "EBITDA", "Otros", "Ut. Neta"],
-            y = [ventas_mes, -costo_ventas_mes, utilidad_bruta_mes, -gasto_alquiler_mes, -gasto_planilla_mes, -gasto_otros_mes, ebitda_mes, -(depreciacion_mes+intereses_mes+impuestos_mes), utilidad_neta_mes],
+            y = [ventas_actual, -costo_ventas, utilidad_bruta, -gasto_alquiler, -gasto_planilla, -gasto_otros, ebitda, -(depreciacion+intereses+impuestos), utilidad_neta],
             connector = {"line":{"color":"rgb(63, 63, 63)"}},
             decreasing = {"marker":{"color":"#ef5350"}},
             increasing = {"marker":{"color":"#66bb6a"}},
             totals = {"marker":{"color":"#1565c0"}}
         ))
-        fig_waterfall.update_layout(title="Cascada Detallada (Mensual)", showlegend=False, height=600)
+        fig_waterfall.update_layout(title="Cascada Detallada", showlegend=False, height=600)
         st.plotly_chart(fig_waterfall, use_container_width=True)
-
 
 # MÓDULO 2: SEMÁFORO DE EFICIENCIA & SIMULADOR (CON IMPACTO EN VALOR)
 with tab2:
@@ -394,66 +394,6 @@ with tab4:
         
         if dinero_atrapado_total > 20000: 
             st.info("💡 **Consultor:** 'No necesitas vender más para tener liquidez, necesitas liberar esos fondos atrapados mediante Factoring o Remates'.")
-
-# ==========================================
-# TAB 5: CALCULADORA DE VALORACIÓN DE MERCADO
-# ==========================================
-with tab5:
-    st.subheader("📈 Calculadora de Valoración de Empresa")
-    
-    # 1. Lógica del Cálculo (Backend)
-    # Tomamos el EBITDA mensual (calculado en la cascada) y lo anualizamos
-    ebitda_anualizado = ebitda * 12
-    
-    col_val_input, col_val_result = st.columns([1, 1])
-    
-    with col_val_input:
-        st.info("💡 La Fórmula: (EBITDA Promedio Mensual x 12) x Múltiplo")
-        
-        # Dato Automático
-        st.metric("EBITDA Mensual Actual", f"${ebitda:,.2f}")
-        st.metric("EBITDA Anualizado (Base)", f"${ebitda_anualizado:,.2f}", help="Es tu EBITDA mensual multiplicado por 12 meses.")
-        
-        st.markdown("---")
-        
-        # 2. Dato Modificable (El Selector / Dropdown)
-        multiplo_seleccionado = st.selectbox(
-            "Selecciona el Factor Multiplicador:",
-            options=[2, 3, 4, 5, 6], # Opciones sugeridas
-            index=1, # El índice 1 es el número '3' (posición: 0, [1], 2, 3...) -> Default 3x
-            help="Industrias tradicionales: 2x-3x. Tecnología/Escalables: 4x-6x."
-        )
-    
-    with col_val_result:
-        # 3. El Resultado Visual (Cálculo Dinámico)
-        # Se actualiza apenas cambias el Dropdown
-        valor_mercado_final = ebitda_anualizado * multiplo_seleccionado
-        
-        if valor_mercado_final > 0:
-            st.markdown(f"""
-            <div class="valuation-box" style="text-align: center; border: 2px solid #2e7d32; background-color: #f1f8e9;">
-                <h3 style="color: #555;">Tu Empresa Vale:</h3>
-                <h1 style="font-size: 50px; color: #1b5e20; margin: 0;">${valor_mercado_final:,.2f}</h1>
-                <p style="margin-top: 10px; font-weight: bold;">(EBITDA Anual x {multiplo_seleccionado})</p>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            # Mensaje de refuerzo positivo
-            incremento = valor_mercado_final - (ebitda_anualizado * 2) # Comparado contra el escenario pesimista
-            st.success(f"💰 **Visión de Estratega:** Subir el múltiplo aumenta tu patrimonio. Una empresa organizada y sin dependencia del dueño vale más (cerca de 5x-6x).")
-            
-        else:
-            st.warning("⚠️ No se puede valorar una empresa con EBITDA negativo por el método de Múltiplos. Primero debemos sanear la operación (Módulo 1).")
-
-    # 4. Nota al pie
-    st.markdown("""
-    <div style="font-size: 11px; color: #666; margin-top: 20px; border-top: 1px solid #ddd; padding-top: 5px;">
-    * <strong>Nota Legal:</strong> Estimación basada en método de Múltiplos de EBITDA. Uso estrictamente estratégico. 
-    El Balance General se comporta de forma totalmente diferente al Estado de Resultados (P&L). 
-    Si sumas los Balances de 12 meses, cometerás un error garrafal y la App dará datos locos.
-    </div>
-    """, unsafe_allow_html=True)
-
 
 # ==========================================
 # GENERADOR DE REPORTE PROFESIONAL (PDF)
@@ -636,7 +576,5 @@ if st.sidebar.button("📄 Generar Informe Consultivo"):
         file_name=f"Informe_Estrategico_SG_{datetime.now().strftime('%Y%m%d')}.pdf",
         mime="application/pdf"
     )
-
-
 
 
