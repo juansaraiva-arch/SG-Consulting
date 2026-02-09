@@ -167,8 +167,10 @@ dias_proveedor = (cuentas_pagar / costo_ventas) * 30 if costo_ventas > 0 else 0
 ccc = dias_calle + dias_inventario - dias_proveedor
 
 # --- NUEVOS CÁLCULOS: VALORACIÓN Y DINERO ATRAPADO ---
-# Valoración Actual (Anualizada)
-valor_empresa_actual = ebitda * 12 * multiplo_industria if ebitda > 0 else 0
+# 6. Valoración Actual (CORRECCIÓN TEMPORAL)
+# Usamos un múltiplo base de 3x aquí para que el resto de la App (como la Tab 1) no falle.
+# La valoración dinámica real controlada por el usuario estará en la Pestaña 5.
+valor_empresa_actual = (ebitda * 12) * 3 if ebitda > 0 else 0
 
 # Dinero Atrapado
 dinero_atrapado_total = cuentas_cobrar + inventario
@@ -419,52 +421,48 @@ with tab4:
         if dinero_atrapado_total > 20000: 
             st.info("💡 **Consultor:** 'No necesitas vender más para tener liquidez, necesitas liberar esos fondos atrapados mediante Factoring o Remates'.")
 
-# TAB 5: VALORACIÓN DE MERCADO (NUEVA PESTAÑA)
-# TAB 5: VALORACIÓN DE MERCADO (NUEVA PESTAÑA)
+# TAB 5: VALORACIÓN DE MERCADO (NUEVA PESTAÑA DINÁMICA)
 with tab5:
     st.subheader("📈 Calculadora de Valoración de Mercado")
     
-    # 1. Dato Automático (Backend): Calcula el EBITDA Anualizado
-    # Toma el EBITDA mensual calculado previamente y lo proyectamos a 12 meses
-    ebitda_anualizado = ebitda_mes * 12
+    # 1. Backend: Calculamos el EBITDA Anualizado automáticamente
+    ebitda_anualizado = ebitda * 12
     
     col_val_input, col_val_result = st.columns([1, 1])
     
     with col_val_input:
-        st.info("💡 Fórmula: (EBITDA Promedio Mensual x 12) x Factor Multiplicador")
-        
-        # Muestra el dato automático calculado
+        st.info("💡 Fórmula: (EBITDA Promedio Mensual x 12) x Múltiplo")
         st.metric("EBITDA Anualizado (Base)", f"${ebitda_anualizado:,.2f}")
         
-        # 2. Dato Modificable (Frontend): El Selector Dropdown
+        # 2. Frontend: El Selector (Dato Modificable)
+        # Aquí creamos el Dropdown que pediste
         multiplo_seleccionado = st.selectbox(
             "Selecciona el Factor Multiplicador:",
-            options=[2, 3, 4, 5, 6], # Opciones sugeridas
-            index=1, # El índice 1 corresponde al valor '3' (2, [3], 4, 5, 6) -> Por defecto 3x
-            help="Industrias tradicionales suelen usar 2x-3x. Empresas tecnológicas o escalables 4x-6x."
+            options=[2, 3, 4, 5, 6], # Tus opciones sugeridas
+            index=1, # Esto hace que por defecto arranque en '3' (posición 1 de la lista)
+            help="Industrias tradicionales: 2x-3x. Tecnología/Escalables: 4x-6x."
         )
     
     with col_val_result:
-        # 3. Resultado Visual (Cálculo en tiempo real)
-        valor_empresa_calculado = ebitda_anualizado * multiplo_seleccionado
+        # 3. Resultado Visual (Se actualiza en tiempo real al mover el selector)
+        valor_mercado_dinamico = ebitda_anualizado * multiplo_seleccionado
         
-        if valor_empresa_calculado > 0:
+        if valor_mercado_dinamico > 0:
             st.markdown(f"""
             <div class="valuation-box" style="text-align: center;">
                 <h3>Valor Estimado de la Empresa</h3>
-                <h1 style="font-size: 48px; color: #1b5e20;">${valor_empresa_calculado:,.2f}</h1>
+                <h1 style="font-size: 48px; color: #1b5e20;">${valor_mercado_dinamico:,.2f}</h1>
                 <p>Múltiplo aplicado: <strong>{multiplo_seleccionado}x EBITDA</strong></p>
             </div>
             """, unsafe_allow_html=True)
         else:
             st.warning("⚠️ No se puede valorar una empresa con EBITDA negativo por este método.")
 
-    # 4. Nota al pie (Disclaimer)
+    # 4. Nota al pie (Tu explicación de mentora)
     st.markdown("""
     <div class="legal-footer">
     * Nota: Estimación basada en método de Múltiplos de EBITDA. Uso estrictamente estratégico. 
-    El Balance General se comporta de forma totalmente diferente al Estado de Resultados (P&L). 
-    Si sumas los Balances de 12 meses, cometerás un error garrafal.
+    El Balance General se comporta diferente al P&L (Foto vs Película). Esta valoración asume continuidad operativa.
     </div>
     """, unsafe_allow_html=True)
     
@@ -499,21 +497,27 @@ def create_professional_pdf():
     pdf.ln(5)
     pdf.set_font('Arial', 'B', 14); pdf.cell(0, 10, '3. VALORACION DE MERCADO', 0, 1)
     
-    # Recálculo para PDF: Usamos el múltiplo que seleccionó el usuario si existe, si no, usamos 3x por defecto
+    # LÓGICA DE CONEXIÓN:
+    # Intentamos tomar el valor del selector (multiplo_seleccionado).
+    # Si por alguna razón no está definido (ej. no ha cargado la pestaña), usamos 3 por defecto.
     multiplo_pdf = multiplo_seleccionado if 'multiplo_seleccionado' in globals() else 3
-    # Backend del PDF: (EBITDA Mes x 12) x Múltiplo
-    val_estimado_pdf = (ebitda_mes * 12) * multiplo_pdf
+    
+    # Calculamos el valor final para el PDF usando ese múltiplo
+    val_estimado_pdf = (ebitda * 12) * multiplo_pdf
     
     pdf.set_font('Arial', '', 12)
-    pdf.cell(0, 8, f"EBITDA Anualizado: ${(ebitda_mes*12):,.2f}", 0, 1)
+    pdf.cell(0, 8, f"EBITDA Anualizado: ${(ebitda*12):,.2f}", 0, 1)
     pdf.cell(0, 8, f"Multiplo Aplicado: {multiplo_pdf}x", 0, 1)
+    
     pdf.set_font('Arial', 'B', 14); pdf.set_text_color(27, 94, 32)
     pdf.cell(0, 10, f"Valor Estimado: ${val_estimado_pdf:,.2f}", 0, 1)
+    
     pdf.set_text_color(0)
     pdf.set_font('Arial', 'I', 8)
-    pdf.cell(0, 5, "Estimacion basada en metodo de Multiplos de EBITDA. Uso estrictamente estrategico.", 0, 1)
+    pdf.cell(0, 5, "Estimacion basada en metodo de Multiplos de EBITDA.", 0, 1)
     
     pdf.ln(10); pdf.set_font('Arial', 'I', 8)
     pdf.multi_cell(0, 5, "ADVERTENCIA FIDUCIARIA: Informe de uso interno. El Balance General se comporta diferente al P&L (Foto vs Pelicula).")
     
     return pdf.output(dest='S').encode('latin-1', 'replace')
+
