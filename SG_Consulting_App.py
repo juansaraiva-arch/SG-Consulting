@@ -209,73 +209,69 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs(["💎 Cascada & Potencia", "🚦 Semáfo
 # MÓDULO 1: CASCADA DE POTENCIA + VALORACIÓN (ACTUALIZADO)
 # --- REEMPLAZA TODO EL BLOQUE 'with tab1:' CON ESTO ---
 
+# TAB 1: LOS 4 NIVELES DE POTENCIA (CORREGIDO)
 with tab1:
     col_main, col_chart = st.columns([1.2, 1])
     
     with col_main:
-        # --- 1. SECCIÓN VALORACIÓN (NUEVA - LA MANTENEMOS) ---
-        st.markdown("### 🏆 Valoración Patrimonial")
+        st.subheader("Diagnóstico de los 4 Niveles de Potencia")
+        st.caption(f"Datos mostrados en base mensual promedio.")
+
+        # --- SECCIÓN VALORACIÓN BASE (CORREGIDA) ---
+        # Usamos el valor seguro calculado previamente (3x)
         if valor_empresa_actual > 0:
             st.markdown(f"""
             <div class="valuation-box">
-                <h4>Valor Actual de la Empresa:</h4>
+                <h4>Valor Ref. de la Empresa (Base 3x):</h4>
                 <h1 style="color: #1b5e20;">${valor_empresa_actual:,.2f}</h1>
-                <p>Basado en {multiplo_industria}x EBITDA Anual.</p>
+                <p>Basado en 3.0x EBITDA Anual. <br><em>(Ve a la Pestaña 5 para personalizar el múltiplo)</em></p>
             </div>
             """, unsafe_allow_html=True)
-        else:
-            st.error("Tu empresa hoy vale $0.00 para un inversor (EBITDA Negativo).")
-            
+
         st.markdown("---")
-        
-        # --- 2. SECCIÓN POTENCIA (RESTAURAMOS EL DISEÑO DE LA FOTO) ---
-        st.subheader("Diagnóstico de los 4 Niveles de Potencia")
-        
-        # NIVEL 1: POTENCIA COMERCIAL
+
+        # NIVEL 1
         st.markdown('<div class="power-level-title">Nivel 1: Potencia Comercial (Utilidad Bruta)</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="power-value">${utilidad_bruta:,.2f} (Margen: {margen_bruto:.1f}%)</div>', unsafe_allow_html=True)
-        
+        st.markdown(f'<div class="power-value">${utilidad_bruta_mes:,.2f} (Margen: {margen_bruto:.1f}%)</div>', unsafe_allow_html=True)
         if margen_bruto > 30:
             st.markdown('<div class="check-box-success">✅ Modelo de precios y proveedores saludable.</div>', unsafe_allow_html=True)
         else:
             st.markdown('<div class="check-box-warning">⚠️ Margen bajo. Revisa precios o costo de compra.</div>', unsafe_allow_html=True)
 
-        # NIVEL 2: POTENCIA OPERATIVA (EL CORAZÓN)
+        # NIVEL 2
         st.markdown('<div class="power-level-title">Nivel 2: Potencia Operativa (EBITDA) - El Corazón</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="power-value">${ebitda:,.2f} (Margen: {margen_ebitda:.1f}%)</div>', unsafe_allow_html=True)
-
-        if ebitda > 0 and margen_ebitda > 10:
-             st.markdown('<div class="check-box-success">✅ El corazón del negocio late fuerte. La operación genera dinero puro.</div>', unsafe_allow_html=True)
-        elif ebitda > 0:
-             st.markdown('<div class="check-box-warning">⚠️ Genera dinero pero es vulnerable (Margen < 10%).</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="power-value">${ebitda_mes:,.2f} (Margen: {margen_ebitda:.1f}%)</div>', unsafe_allow_html=True)
+        if ebitda_mes > 0 and margen_ebitda > 10:
+             st.markdown('<div class="check-box-success">✅ El corazón del negocio late fuerte.</div>', unsafe_allow_html=True)
+        elif ebitda_mes > 0:
+             st.markdown('<div class="check-box-warning">⚠️ Genera dinero pero es vulnerable (< 10%).</div>', unsafe_allow_html=True)
         else:
              st.markdown('<div class="check-box-danger">🚨 ALERTA ROJA: El negocio quema efectivo.</div>', unsafe_allow_html=True)
 
-        # NIVEL 3: POTENCIA DE ACTIVOS
+        # NIVEL 3
         st.markdown('<div class="power-level-title">Nivel 3: Potencia de Activos (EBIT)</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="power-value">${ebit:,.2f} (Margen: {margen_ebit:.1f}%)</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="power-value">${ebit_mes:,.2f}</div>', unsafe_allow_html=True)
 
-        # NIVEL 4: POTENCIA PATRIMONIAL
+        # NIVEL 4
         st.markdown('<div class="power-level-title">Nivel 4: Potencia Patrimonial (Utilidad Neta)</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="power-value">${utilidad_neta:,.2f} (Margen: {margen_neto:.1f}%)</div>', unsafe_allow_html=True)
-        
-        if utilidad_neta > 0:
-             st.markdown('<div class="check-box-success">✅ Potencia Patrimonial positiva. El dueño gana dinero.</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="power-value">${utilidad_neta_mes:,.2f} (Margen: {margen_neto:.1f}%)</div>', unsafe_allow_html=True)
+        if utilidad_neta_mes > 0:
+             st.markdown('<div class="check-box-success">✅ El dueño gana dinero.</div>', unsafe_allow_html=True)
         else:
-             st.markdown('<div class="check-box-danger">🚨 El dueño pierde dinero (Revisar Deuda/Impuestos).</div>', unsafe_allow_html=True)
+             st.markdown('<div class="check-box-danger">🚨 El dueño pierde dinero.</div>', unsafe_allow_html=True)
 
     with col_chart:
         fig_waterfall = go.Figure(go.Waterfall(
             name = "20", orientation = "v",
             measure = ["relative", "relative", "subtotal", "relative", "relative", "relative", "subtotal", "relative", "total"],
             x = ["Ventas", "Costo Ventas", "Ut. Bruta", "Alquiler", "Planilla", "Otros Gastos", "EBITDA", "Otros", "Ut. Neta"],
-            y = [ventas_actual, -costo_ventas, utilidad_bruta, -gasto_alquiler, -gasto_planilla, -gasto_otros, ebitda, -(depreciacion+intereses+impuestos), utilidad_neta],
+            y = [ventas_mes, -costo_ventas_mes, utilidad_bruta_mes, -gasto_alquiler_mes, -gasto_planilla_mes, -gasto_otros_mes, ebitda_mes, -(depreciacion_mes+intereses_mes+impuestos_mes), utilidad_neta_mes],
             connector = {"line":{"color":"rgb(63, 63, 63)"}},
             decreasing = {"marker":{"color":"#ef5350"}},
             increasing = {"marker":{"color":"#66bb6a"}},
             totals = {"marker":{"color":"#1565c0"}}
         ))
-        fig_waterfall.update_layout(title="Cascada Detallada", showlegend=False, height=600)
+        fig_waterfall.update_layout(title="Cascada Detallada (Mensual)", showlegend=False, height=600)
         st.plotly_chart(fig_waterfall, use_container_width=True)
 
 # MÓDULO 2: SEMÁFORO DE EFICIENCIA & SIMULADOR (CON IMPACTO EN VALOR)
@@ -520,4 +516,5 @@ def create_professional_pdf():
     pdf.multi_cell(0, 5, "ADVERTENCIA FIDUCIARIA: Informe de uso interno. El Balance General se comporta diferente al P&L (Foto vs Pelicula).")
     
     return pdf.output(dest='S').encode('latin-1', 'replace')
+
 
