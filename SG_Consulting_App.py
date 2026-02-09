@@ -78,118 +78,80 @@ st.title("🚀 SG Consulting | Strategic Dashboard")
 st.markdown("Diagnóstico basado en **La Cascada de Potencia**, **Semáforos de Eficiencia** y **Valoración Patrimonial**")
 
 # --- BARRA LATERAL: INPUT DE VARIABLES ---
-# --- BARRA LATERAL: INPUT DE VARIABLES ---
-with st.sidebar:
-    st.header("1. Configuración")
-    
-    # SELECTOR DE MODO (CRÍTICO PARA LA LÓGICA DE CÁLCULO)
-    modo_analisis = st.radio(
-        "Modo de Datos:", 
-        ["Mensual (Flash)", "Anual (Estratega)"],
-        help="Mensual: Datos de un solo mes. Anual: Datos acumulados de 12 meses."
-    )
-    
-    st.header("2. Datos Financieros")
-    
-    with st.expander("A. Estado de Resultados (P&L)", expanded=True):
-        st.info(f"Ingresa los valores {'del MES' if 'Mensual' in modo_analisis else 'TOTALES del AÑO'}.")
-        # Usamos variables temporales (_input) para luego procesarlas
-        ventas_input = st.number_input("Ventas Totales ($)", value=600000.0 if 'Anual' in modo_analisis else 50000.0, step=1000.0)
-        costo_ventas_input = st.number_input("Costo de Ventas (Variable)", value=360000.0 if 'Anual' in modo_analisis else 30000.0, step=1000.0)
-        
-        st.markdown("**Gastos Operativos (OPEX):**")
-        gasto_alquiler_input = st.number_input("1. Alquiler + CAM", value=60000.0 if 'Anual' in modo_analisis else 5000.0, step=100.0)
-        gasto_planilla_input = st.number_input("2. Planilla Total", value=96000.0 if 'Anual' in modo_analisis else 8000.0, step=500.0)
-        gasto_otros_input = st.number_input("3. Otros Gastos Operativos", value=24000.0 if 'Anual' in modo_analisis else 2000.0, step=100.0)
-        
-        st.markdown("---")
-        depreciacion_input = st.number_input("Depreciaciones + Amortizaciones", value=24000.0 if 'Anual' in modo_analisis else 2000.0, step=100.0)
-        intereses_input = st.number_input("Intereses (Gastos Financieros)", value=12000.0 if 'Anual' in modo_analisis else 1000.0, step=100.0)
-        impuestos_input = st.number_input("Impuestos", value=18000.0 if 'Anual' in modo_analisis else 1500.0, step=100.0)
-
-    with st.expander("B. Balance General (FOTO)", expanded=True):
-        st.warning("⚠️ Ingresa el SALDO FINAL (Lo que hay hoy). No dividas ni sumes.")
-        # El Balance NO cambia de nombre de variable porque siempre es Saldo Final
-        inventario = st.number_input("Inventario (Saldo Final $)", value=20000.0)
-        cuentas_cobrar = st.number_input("Cuentas por Cobrar (Saldo Final $)", value=15000.0)
-        cuentas_pagar = st.number_input("Cuentas por Pagar (Saldo Final $)", value=10000.0)
-
-# --- PUENTE DE NORMALIZACIÓN (AQUÍ OCURRE LA MAGIA) ---
-if "Anual" in modo_analisis:
+# --- LÓGICA DE NORMALIZACIÓN (EL CEREBRO DE LA APP) ---
+# Definimos el divisor según el modo elegido en la barra lateral
+if 'modo_analisis' in locals() and "Anual" in modo_analisis:
     divisor = 12
-    st.sidebar.success("✅ Modo Anual: P&L convertido a promedio mensual.")
+    st.sidebar.success("✅ Modo Anual: Datos convertidos a promedio mensual.")
 else:
     divisor = 1
+    # st.sidebar.info("ℹ️ Modo Mensual: Datos directos.")
 
-# Convertimos inputs anuales a base mensual operativa (SOLO P&L)
-ventas_actual = ventas_input / divisor
-costo_ventas = costo_ventas_input / divisor
-gasto_alquiler = gasto_alquiler_input / divisor
-gasto_planilla = gasto_planilla_input / divisor
-gasto_otros = gasto_otros_input / divisor
-gastos_operativos = gasto_alquiler + gasto_planilla + gasto_otros # Recalculamos total
-depreciacion = depreciacion_input / divisor
-intereses = intereses_input / divisor
-impuestos = impuestos_input / divisor
+# 1. Normalización de P&L (Todo a Base Mensual para cálculos operativos)
+# Usamos las variables _input que definimos en el sidebar
+ventas_mes = ventas_input / divisor
+costo_ventas_mes = costo_ventas_input / divisor
+gasto_alquiler_mes = gasto_alquiler_input / divisor
+gasto_planilla_mes = gasto_planilla_input / divisor
+gasto_otros_mes = gasto_otros_input / divisor
+gastos_operativos_mes = gasto_alquiler_mes + gasto_planilla_mes + gasto_otros_mes
 
-# NOTA: Inventario, Cuentas por Cobrar y Pagar NO se tocan (Son Saldos).
+depreciacion_mes = depreciacion_input / divisor
+intereses_mes = intereses_input / divisor
+impuestos_mes = impuestos_input / divisor
 
-# --- CÁLCULOS PRINCIPALES (MANTENIENDO TODOS LOS ANTERIORES) ---
+# --- CÁLCULOS PRINCIPALES (USANDO BASE MENSUAL NORMALIZADA) ---
 
-# NIVEL 1: Potencia Comercial
-utilidad_bruta = ventas_actual - costo_ventas
-margen_bruto = (utilidad_bruta / ventas_actual) * 100 if ventas_actual > 0 else 0
+# A. Potencia
+utilidad_bruta_mes = ventas_mes - costo_ventas_mes
+margen_bruto = (utilidad_bruta_mes / ventas_mes) * 100 if ventas_mes > 0 else 0
 
-# NIVEL 2: Potencia Operativa
-ebitda = utilidad_bruta - gastos_operativos
-margen_ebitda = (ebitda / ventas_actual) * 100 if ventas_actual > 0 else 0
+ebitda_mes = utilidad_bruta_mes - gastos_operativos_mes
+margen_ebitda = (ebitda_mes / ventas_mes) * 100 if ventas_mes > 0 else 0
 
-# NIVEL 3 & 4
-ebit = ebitda - depreciacion
-margen_ebit = (ebit / ventas_actual) * 100 if ventas_actual > 0 else 0
-utilidad_neta = ebit - intereses - impuestos
-margen_neto = (utilidad_neta / ventas_actual) * 100 if ventas_actual > 0 else 0
+ebit_mes = ebitda_mes - depreciacion_mes
+utilidad_neta_mes = ebit_mes - intereses_mes - impuestos_mes
+margen_neto = (utilidad_neta_mes / ventas_mes) * 100 if ventas_mes > 0 else 0
 
-# CÁLCULOS DE RATIOS DE EFICIENCIA
-ratio_alquiler = (gasto_alquiler / ventas_actual) * 100 if ventas_actual > 0 else 0
-ratio_planilla = (gasto_planilla / utilidad_bruta) * 100 if utilidad_bruta > 0 else 0
+# B. Ratios Eficiencia (Mensual)
+ratio_alquiler = (gasto_alquiler_mes / ventas_mes) * 100 if ventas_mes > 0 else 0
+ratio_planilla = (gasto_planilla_mes / utilidad_bruta_mes) * 100 if utilidad_bruta_mes > 0 else 0
 
-# Puntos de Equilibrio y Caja
-costos_fijos_totales = gastos_operativos + intereses 
-margen_contribucion_pct = (utilidad_bruta / ventas_actual) if ventas_actual > 0 else 0
-punto_equilibrio = costos_fijos_totales / margen_contribucion_pct if margen_contribucion_pct > 0 else 0
-margen_seguridad = ventas_actual - punto_equilibrio
+# C. Supervivencia
+costos_fijos_totales_mes = gastos_operativos_mes + intereses_mes
+margen_contribucion_pct = (utilidad_bruta_mes / ventas_mes) if ventas_mes > 0 else 0
+punto_equilibrio_mes = costos_fijos_totales_mes / margen_contribucion_pct if margen_contribucion_pct > 0 else 0
+margen_seguridad_mes = ventas_mes - punto_equilibrio_mes
 
-# CCC (Días)
-dias_calle = (cuentas_cobrar / ventas_actual) * 30 if ventas_actual > 0 else 0
-dias_inventario = (inventario / costo_ventas) * 30 if costo_ventas > 0 else 0
-dias_proveedor = (cuentas_pagar / costo_ventas) * 30 if costo_ventas > 0 else 0
+# D. Oxígeno (CCC) - Lógica de Balance Correcta
+# Nota: Cuentas por Cobrar/Pagar e Inventario NO se dividen (son saldos finales)
+dias_calle = (cuentas_cobrar / ventas_mes) * 30 if ventas_mes > 0 else 0
+dias_inventario = (inventario / costo_ventas_mes) * 30 if costo_ventas_mes > 0 else 0
+dias_proveedor = (cuentas_pagar / costo_ventas_mes) * 30 if costo_ventas_mes > 0 else 0
 ccc = dias_calle + dias_inventario - dias_proveedor
 
-# --- NUEVOS CÁLCULOS: VALORACIÓN Y DINERO ATRAPADO ---
-# 6. Valoración Actual (CORRECCIÓN TEMPORAL)
-# Usamos un múltiplo base de 3x aquí para que el resto de la App (como la Tab 1) no falle.
-# La valoración dinámica real controlada por el usuario estará en la Pestaña 5.
-valor_empresa_actual = (ebitda * 12) * 3 if ebitda > 0 else 0
-
-# Dinero Atrapado
+# Dinero Atrapado (Saldo Real del Balance)
 dinero_atrapado_total = cuentas_cobrar + inventario
 
-# --- EL JUEZ DIGITAL: LOGICA DE VEREDICTO AUTOMÁTICO ---
+# E. Valoración Base (Para Tab 1 - Evita errores)
+# Calculamos un valor base con múltiplo 3x para que la Pestaña 1 no falle.
+valor_empresa_actual = (ebitda_mes * 12) * 3 if ebitda_mes > 0 else 0
+
+# --- EL JUEZ DIGITAL ---
 veredicto_final = ""
 icono_veredicto = "⚖️"
 
-if ebitda < 0:
-    veredicto_final = "INTERVENCIÓN DE EMERGENCIA NECESARIA. El modelo de negocio está consumiendo capital. Su problema no es de ventas, es estructural. Se requiere corte inmediato de gastos (Cirugía Mayor)."
+if ebitda_mes < 0:
+    veredicto_final = "INTERVENCIÓN DE EMERGENCIA NECESARIA. El modelo de negocio está consumiendo capital. Problema Estructural."
     icono_veredicto = "🚨"
 elif ccc > 60:
-    veredicto_final = "SÍNDROME DE 'AGUJERO NEGRO'. Su empresa es rentable (EBITDA Positivo) pero insolvente. Estás financiando a tus clientes con tu propio sudor. Tu prioridad #1 no es vender, es COBRAR."
+    veredicto_final = "SÍNDROME DE 'AGUJERO NEGRO'. Rentable pero insolvente. Financiamiento excesivo a clientes. Prioridad: COBRAR."
     icono_veredicto = "🕳️"
 elif ratio_alquiler > 15:
-    veredicto_final = "RIESGO INMOBILIARIO. Estás trabajando para pagar el local. Tu estructura de costos fijos es demasiado pesada para tu nivel de ventas actual."
+    veredicto_final = "RIESGO INMOBILIARIO. Estás trabajando para pagar el local. Estructura de costos muy pesada."
     icono_veredicto = "🏢"
 else:
-    veredicto_final = "EMPRESA SALUDABLE Y ESCALABLE. Tienes control operativo y flujo de caja. Estás listo para invertir en crecimiento o preparar una venta estratégica."
+    veredicto_final = "EMPRESA SALUDABLE Y ESCALABLE. Control operativo y flujo de caja sano. Listo para crecer."
     icono_veredicto = "✅"
 
 
@@ -516,5 +478,6 @@ def create_professional_pdf():
     pdf.multi_cell(0, 5, "ADVERTENCIA FIDUCIARIA: Informe de uso interno. El Balance General se comporta diferente al P&L (Foto vs Pelicula).")
     
     return pdf.output(dest='S').encode('latin-1', 'replace')
+
 
 
