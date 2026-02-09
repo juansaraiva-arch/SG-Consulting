@@ -76,93 +76,94 @@ st.title("🚀 SG Consulting | Strategic Dashboard")
 st.markdown("Diagnóstico basado en **La Cascada de Potencia**, **Semáforos de Eficiencia** y **Valoración Patrimonial**")
 
 # --- BARRA LATERAL: INPUT DE VARIABLES ---
-with st.sidebar:
-    st.header("1. Datos Financieros (Mes Actual)")
+# --- LÓGICA DE NORMALIZACIÓN (EL PUENTE ENTRE SIDEBAR Y TABS) ---
+# Detectamos si el usuario eligió Modo Anual para dividir entre 12
+if 'modo_analisis' in locals() and "Anual" in modo_analisis:
+    divisor = 12
+    st.sidebar.success("✅ Modo Anual: Datos convertidos a promedio mensual.")
+else:
+    divisor = 1
+
+# 1. Normalización de P&L (Todo a Base Mensual para evitar errores)
+# Si no existen las variables _input (por si acaso), usamos valores por defecto
+try:
+    ventas_mes = ventas_input / divisor
+    costo_ventas_mes = costo_ventas_input / divisor
+    gasto_alquiler_mes = gasto_alquiler_input / divisor
+    gasto_planilla_mes = gasto_planilla_input / divisor
+    gasto_otros_mes = gasto_otros_input / divisor
     
-    with st.expander("A. Estado de Resultados (Desglosado)", expanded=True):
-        st.info("Ingresa los datos para calcular los Niveles de Potencia y Eficiencia.")
-        ventas_actual = st.number_input("Ventas Totales ($)", value=50000.0, step=1000.0)
-        costo_ventas = st.number_input("Costo de Ventas (Variable)", value=30000.0, step=1000.0, help="Materia prima, comisiones, costo directo.")
-        
-        st.markdown("---")
-        st.markdown("**Desglose de Gastos Operativos (OPEX):**")
-        # DESGLOSE CLAVE PARA LOS RATIOS
-        gasto_alquiler = st.number_input("1. Alquiler + Mantenimiento (CAM)", value=5000.0, step=100.0, help="Renta del local y cuotas de mantenimiento.")
-        gasto_planilla = st.number_input("2. Planilla / Nómina Total", value=8000.0, step=500.0, help="Sueldos administrativos y operativos fijos.")
-        gasto_otros = st.number_input("3. Otros Gastos Operativos", value=2000.0, step=100.0, help="Luz, agua, internet, marketing, etc.")
-        
-        # CÁLCULO AUTO DE OPEX TOTAL
-        gastos_operativos = gasto_alquiler + gasto_planilla + gasto_otros
-        st.write(f"**Total OPEX:** ${gastos_operativos:,.2f}")
-        st.markdown("---")
+    depreciacion_mes = depreciacion_input / divisor
+    intereses_mes = intereses_input / divisor
+    impuestos_mes = impuestos_input / divisor
+except NameError:
+    # Fallback de seguridad si la barra lateral no se actualizó bien
+    ventas_mes = ventas_actual if 'ventas_actual' in locals() else 50000
+    costo_ventas_mes = costo_ventas if 'costo_ventas' in locals() else 30000
+    gasto_alquiler_mes = gasto_alquiler if 'gasto_alquiler' in locals() else 5000
+    gasto_planilla_mes = gasto_planilla if 'gasto_planilla' in locals() else 8000
+    gasto_otros_mes = gasto_otros if 'gasto_otros' in locals() else 2000
+    depreciacion_mes = 2000
+    intereses_mes = 1000
+    impuestos_mes = 1500
 
-        depreciacion = st.number_input("Depreciaciones + Amortizaciones", value=2000.0, step=100.0)
-        intereses = st.number_input("Intereses (Gastos Financieros)", value=1000.0, step=100.0)
-        impuestos = st.number_input("Impuestos", value=1500.0, step=100.0)
+gastos_operativos_mes = gasto_alquiler_mes + gasto_planilla_mes + gasto_otros_mes
 
-    with st.expander("B. Balance General (Para Flujo de Caja)", expanded=False):
-        inventario = st.number_input("Inventario ($)", value=20000.0)
-        cuentas_cobrar = st.number_input("Cuentas por Cobrar ($)", value=15000.0)
-        cuentas_pagar = st.number_input("Cuentas por Pagar ($)", value=10000.0)
-        
-    
-# --- CÁLCULOS PRINCIPALES (MANTENIENDO TODOS LOS ANTERIORES) ---
+# --- CÁLCULOS PRINCIPALES (AHORA SÍ GENERA LAS VARIABLES _mes) ---
 
-# NIVEL 1: Potencia Comercial
-utilidad_bruta = ventas_actual - costo_ventas
-margen_bruto = (utilidad_bruta / ventas_actual) * 100 if ventas_actual > 0 else 0
+# A. Potencia
+utilidad_bruta_mes = ventas_mes - costo_ventas_mes
+margen_bruto = (utilidad_bruta_mes / ventas_mes) * 100 if ventas_mes > 0 else 0
 
-# NIVEL 2: Potencia Operativa
-ebitda = utilidad_bruta - gastos_operativos
-margen_ebitda = (ebitda / ventas_actual) * 100 if ventas_actual > 0 else 0
+ebitda_mes = utilidad_bruta_mes - gastos_operativos_mes
+margen_ebitda = (ebitda_mes / ventas_mes) * 100 if ventas_mes > 0 else 0
 
-# NIVEL 3 & 4
-ebit = ebitda - depreciacion
-margen_ebit = (ebit / ventas_actual) * 100 if ventas_actual > 0 else 0
-utilidad_neta = ebit - intereses - impuestos
-margen_neto = (utilidad_neta / ventas_actual) * 100 if ventas_actual > 0 else 0
+ebit_mes = ebitda_mes - depreciacion_mes
+utilidad_neta_mes = ebit_mes - intereses_mes - impuestos_mes
+margen_neto = (utilidad_neta_mes / ventas_mes) * 100 if ventas_mes > 0 else 0
 
-# CÁLCULOS DE RATIOS DE EFICIENCIA
-ratio_alquiler = (gasto_alquiler / ventas_actual) * 100 if ventas_actual > 0 else 0
-ratio_planilla = (gasto_planilla / utilidad_bruta) * 100 if utilidad_bruta > 0 else 0
+# B. Ratios Eficiencia
+ratio_alquiler = (gasto_alquiler_mes / ventas_mes) * 100 if ventas_mes > 0 else 0
+ratio_planilla = (gasto_planilla_mes / utilidad_bruta_mes) * 100 if utilidad_bruta_mes > 0 else 0
 
-# Puntos de Equilibrio y Caja
-costos_fijos_totales = gastos_operativos + intereses 
-margen_contribucion_pct = (utilidad_bruta / ventas_actual) if ventas_actual > 0 else 0
-punto_equilibrio = costos_fijos_totales / margen_contribucion_pct if margen_contribucion_pct > 0 else 0
-margen_seguridad = ventas_actual - punto_equilibrio
+# C. Supervivencia
+costos_fijos_totales_mes = gastos_operativos_mes + intereses_mes
+margen_contribucion_pct = (utilidad_bruta_mes / ventas_mes) if ventas_mes > 0 else 0
+punto_equilibrio_mes = costos_fijos_totales_mes / margen_contribucion_pct if margen_contribucion_pct > 0 else 0
+margen_seguridad_mes = ventas_mes - punto_equilibrio_mes
 
-# CCC (Días)
-dias_calle = (cuentas_cobrar / ventas_actual) * 30 if ventas_actual > 0 else 0
-dias_inventario = (inventario / costo_ventas) * 30 if costo_ventas > 0 else 0
-dias_proveedor = (cuentas_pagar / costo_ventas) * 30 if costo_ventas > 0 else 0
+# D. Oxígeno (CCC)
+# Usamos saldos finales (no se dividen)
+inv_final = inventario if 'inventario' in locals() else 20000
+cxc_final = cuentas_cobrar if 'cuentas_cobrar' in locals() else 15000
+cxp_final = cuentas_pagar if 'cuentas_pagar' in locals() else 10000
+
+dias_calle = (cxc_final / ventas_mes) * 30 if ventas_mes > 0 else 0
+dias_inventario = (inv_final / costo_ventas_mes) * 30 if costo_ventas_mes > 0 else 0
+dias_proveedor = (cxp_final / costo_ventas_mes) * 30 if costo_ventas_mes > 0 else 0
 ccc = dias_calle + dias_inventario - dias_proveedor
 
-# --- NUEVOS CÁLCULOS: VALORACIÓN Y DINERO ATRAPADO ---
-# Valoración Actual (Anualizada)
-# Valoración Base (Por defecto 3x para cálculos globales):
-valor_empresa_actual = (ebitda * 12) * 3 if ebitda > 0 else 0
+dinero_atrapado_total = cxc_final + inv_final
 
-# Dinero Atrapado
-dinero_atrapado_total = cuentas_cobrar + inventario
+# E. Valoración Base (Para que Tab 1 no falle)
+valor_empresa_actual = (ebitda_mes * 12) * 3 if ebitda_mes > 0 else 0
 
-# --- EL JUEZ DIGITAL: LOGICA DE VEREDICTO AUTOMÁTICO ---
+# --- EL JUEZ DIGITAL ---
 veredicto_final = ""
 icono_veredicto = "⚖️"
 
-if ebitda < 0:
-    veredicto_final = "INTERVENCIÓN DE EMERGENCIA NECESARIA. El modelo de negocio está consumiendo capital. Su problema no es de ventas, es estructural. Se requiere corte inmediato de gastos (Cirugía Mayor)."
+if ebitda_mes < 0:
+    veredicto_final = "INTERVENCIÓN DE EMERGENCIA NECESARIA. El modelo de negocio está consumiendo capital."
     icono_veredicto = "🚨"
 elif ccc > 60:
-    veredicto_final = "SÍNDROME DE 'AGUJERO NEGRO'. Su empresa es rentable (EBITDA Positivo) pero insolvente. Estás financiando a tus clientes con tu propio sudor. Tu prioridad #1 no es vender, es COBRAR."
+    veredicto_final = "SÍNDROME DE 'AGUJERO NEGRO'. Rentable pero insolvente. Prioridad: COBRAR."
     icono_veredicto = "🕳️"
 elif ratio_alquiler > 15:
-    veredicto_final = "RIESGO INMOBILIARIO. Estás trabajando para pagar el local. Tu estructura de costos fijos es demasiado pesada para tu nivel de ventas actual."
+    veredicto_final = "RIESGO INMOBILIARIO. Estás trabajando para pagar el local."
     icono_veredicto = "🏢"
 else:
-    veredicto_final = "EMPRESA SALUDABLE Y ESCALABLE. Tienes control operativo y flujo de caja. Estás listo para invertir en crecimiento o preparar una venta estratégica."
+    veredicto_final = "EMPRESA SALUDABLE Y ESCALABLE. Listo para crecer."
     icono_veredicto = "✅"
-
 
 # --- DASHBOARD VISUAL ---
 
@@ -635,6 +636,7 @@ if st.sidebar.button("📄 Generar Informe Consultivo"):
         file_name=f"Informe_Estrategico_SG_{datetime.now().strftime('%Y%m%d')}.pdf",
         mime="application/pdf"
     )
+
 
 
 
