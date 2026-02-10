@@ -3,15 +3,18 @@ import plotly.graph_objects as go
 import pandas as pd
 from fpdf import FPDF
 from datetime import datetime
+import io
 
-# CONFIGURACIÓN DE LA PÁGINA
-st.set_page_config(page_title="SG Strategic Dashboard", layout="wide", initial_sidebar_state="expanded")
+# ==========================================
+# CONFIGURACIÓN INICIAL Y ESTILOS
+# ==========================================
+st.set_page_config(page_title="SG Consulting | Máquina de Verdad Financiera", layout="wide", initial_sidebar_state="expanded")
 
-# --- 1. INICIALIZACIÓN DE MEMORIA (SESSION STATE) ---
+# Inicialización de Memoria (Session State)
 if 'lab_precios' not in st.session_state:
     st.session_state.lab_precios = []
 
-# --- 2. ESTILOS VISUALES (CSS) ---
+# ESTILOS CSS (DISEÑO VISUAL)
 st.markdown("""
     <style>
     /* Estilos Generales */
@@ -34,75 +37,124 @@ st.markdown("""
         font-weight: bold; display: flex; align-items: center; margin-bottom: 10px; border-left: 5px solid #b71c1c;
     }
 
-    /* Estilos Nuevos */
+    /* Estilos Nuevos V2.5 */
     .verdict-box { background-color: #263238; color: #ffffff; padding: 20px; border-radius: 10px; margin-bottom: 20px; border-left: 8px solid #ffca28; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
     .money-trap { background-color: #ffebee; padding: 20px; border-radius: 10px; border-left: 5px solid #c62828; }
-    .valuation-box { background-color: #e8f5e9; padding: 20px; border-radius: 10px; border-left: 5px solid #2e7d32; }
-    .veredicto { font-style: italic; font-weight: bold; color: #555; padding: 10px; background-color: #f5f5f5; border-radius: 5px; border-left: 4px solid #333; }
+    .valuation-box { background-color: #e3f2fd; padding: 20px; border-radius: 10px; border-left: 5px solid #1565c0; }
     .legal-footer { font-size: 10px; color: #777; margin-top: 10px; font-style: italic; border-top: 1px solid #ddd; padding-top: 5px;}
     </style>
     """, unsafe_allow_html=True)
 
-st.title("🚀 SG Consulting | Strategic Dashboard")
-st.markdown("Diagnóstico basado en **La Cascada de Potencia**, **Semáforos de Eficiencia** y **Laboratorio de Precios**")
+st.title("🚀 SG Consulting | La Máquina de Verdad Financiera")
+st.markdown("**Versión 2.5:** Diagnóstico Flash, Tendencias 'Mandíbulas', Valoración Patrimonial e Ingeniería de Precios.")
 
-# --- 3. BARRA LATERAL: INPUTS ---
+# ==========================================
+# BARRA LATERAL: MOTOR DE MODOS (A/B)
+# ==========================================
 with st.sidebar:
-    st.header("1. Configuración")
+    st.header("1. Modo de Operación")
     
-    # Selector de Modo
-    modo_analisis = st.radio(
-        "Modo de Datos:", 
-        ["Mensual (Flash)", "Anual (Estratega)"],
-        help="Mensual: Datos de un solo mes. Anual: Datos acumulados de 12 meses."
+    # SELECTOR DE MODO
+    modo_operacion = st.radio(
+        "Selecciona el Terreno de Batalla:",
+        ["Modo A: Diagnóstico Flash (Foto)", "Modo B: Estratega (Película)"],
+        index=0,
+        help="Flash: Input manual de un mes. Estratega: Carga masiva de 12 meses (Excel)."
     )
     
-    st.header("2. Datos Financieros")
+    st.header("2. Alimentación de Datos")
     
-    with st.expander("A. Estado de Resultados (P&L)", expanded=True):
-        st.info(f"Ingresa los valores {'del MES' if 'Mensual' in modo_analisis else 'TOTALES del AÑO'}.")
-        
-        ventas_input = st.number_input("Ventas Totales ($)", value=600000.0 if 'Anual' in modo_analisis else 50000.0, step=1000.0)
-        costo_ventas_input = st.number_input("Costo de Ventas (Variable)", value=360000.0 if 'Anual' in modo_analisis else 30000.0, step=1000.0)
-        
-        st.markdown("**Gastos Operativos (OPEX):**")
-        gasto_alquiler_input = st.number_input("1. Alquiler + CAM", value=60000.0 if 'Anual' in modo_analisis else 5000.0, step=100.0)
-        gasto_planilla_input = st.number_input("2. Planilla Total", value=96000.0 if 'Anual' in modo_analisis else 8000.0, step=500.0)
-        gasto_otros_input = st.number_input("3. Otros Gastos Operativos", value=24000.0 if 'Anual' in modo_analisis else 2000.0, step=100.0)
-        
-        st.markdown("---")
-        depreciacion_input = st.number_input("Depreciaciones + Amortizaciones", value=24000.0 if 'Anual' in modo_analisis else 2000.0, step=100.0)
-        intereses_input = st.number_input("Intereses (Gastos Financieros)", value=12000.0 if 'Anual' in modo_analisis else 1000.0, step=100.0)
-        impuestos_input = st.number_input("Impuestos", value=18000.0 if 'Anual' in modo_analisis else 1500.0, step=100.0)
+    # --- VARIABLES GLOBALES INICIALES ---
+    # Valores por defecto para evitar errores si no se cargan datos
+    ventas_mes = 0.0
+    costo_ventas_mes = 0.0
+    gasto_alquiler_mes = 0.0
+    gasto_planilla_mes = 0.0
+    gasto_otros_mes = 0.0
+    depreciacion_mes = 0.0
+    intereses_mes = 0.0
+    impuestos_mes = 0.0
+    
+    df_historico = None # Variable para guardar la "Película"
 
-    with st.expander("B. Balance General (FOTO)", expanded=True):
-        st.warning("⚠️ Ingresa el SALDO FINAL (Lo que hay hoy). No dividas ni sumes.")
-        inventario = st.number_input("Inventario (Saldo Final $)", value=20000.0)
-        cuentas_cobrar = st.number_input("Cuentas por Cobrar (Saldo Final $)", value=15000.0)
-        cuentas_pagar = st.number_input("Cuentas por Pagar (Saldo Final $)", value=10000.0)
+    # --- LÓGICA MODO A: FLASH (INPUT MANUAL) ---
+    if modo_operacion == "Modo A: Diagnóstico Flash (Foto)":
+        st.info("📸 **Modo Flash:** Ingresa los datos de un mes representativo.")
+        
+        with st.expander("Datos del P&L (Mes)", expanded=True):
+            ventas_mes = st.number_input("Ventas Totales ($)", value=50000.0, step=1000.0)
+            costo_ventas_mes = st.number_input("Costo de Ventas (Variable)", value=30000.0, step=1000.0)
+            st.markdown("**Gastos Operativos (OPEX):**")
+            gasto_alquiler_mes = st.number_input("1. Alquiler + CAM", value=5000.0, step=100.0)
+            gasto_planilla_mes = st.number_input("2. Planilla Total", value=8000.0, step=500.0)
+            gasto_otros_mes = st.number_input("3. Otros Gastos", value=2000.0, step=100.0)
+            st.markdown("---")
+            depreciacion_mes = st.number_input("Depreciación", value=2000.0, step=100.0)
+            intereses_mes = st.number_input("Intereses", value=1000.0, step=100.0)
+            impuestos_mes = st.number_input("Impuestos", value=1500.0, step=100.0)
 
-# --- 4. LÓGICA DE NORMALIZACIÓN ---
-if 'modo_analisis' in locals() and "Anual" in modo_analisis:
-    divisor = 12
-    st.sidebar.success("✅ Modo Anual: Datos convertidos a promedio mensual.")
-else:
-    divisor = 1
+    # --- LÓGICA MODO B: ESTRATEGA (CARGA EXCEL) ---
+    else:
+        st.info("🎥 **Modo Estratega:** Analizamos la tendencia de 12 meses.")
+        
+        # 1. Generador de Plantilla
+        data_plantilla = {
+            'Mes': ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'],
+            'Ventas': [50000]*12, 'Costo_Ventas': [30000]*12,
+            'Alquiler': [5000]*12, 'Planilla': [8000]*12, 'Otros_Gastos': [2000]*12,
+            'Depreciacion': [2000]*12, 'Intereses': [1000]*12, 'Impuestos': [1500]*12
+        }
+        df_plantilla = pd.DataFrame(data_plantilla)
+        csv = df_plantilla.to_csv(index=False).encode('utf-8')
+        
+        st.download_button("⬇️ Descargar Plantilla Excel (CSV)", data=csv, file_name="plantilla_sg_consulting.csv", mime="text/csv")
+        
+        # 2. Subidor de Archivo
+        archivo_subido = st.file_uploader("Sube tu archivo (CSV) con 12 meses", type=['csv'])
+        
+        if archivo_subido is not None:
+            try:
+                df_historico = pd.read_csv(archivo_subido)
+                st.success("✅ Datos cargados exitosamente")
+                
+                # CÁLCULO DE PROMEDIOS PARA ALIMENTAR LA CASCADA (MÓDULOS ESTÁTICOS)
+                ventas_mes = df_historico['Ventas'].mean()
+                costo_ventas_mes = df_historico['Costo_Ventas'].mean()
+                gasto_alquiler_mes = df_historico['Alquiler'].mean()
+                gasto_planilla_mes = df_historico['Planilla'].mean()
+                gasto_otros_mes = df_historico['Otros_Gastos'].mean()
+                depreciacion_mes = df_historico['Depreciacion'].mean()
+                intereses_mes = df_historico['Intereses'].mean()
+                impuestos_mes = df_historico['Impuestos'].mean()
+                
+            except Exception as e:
+                st.error(f"Error leyendo el archivo: {e}")
+                st.stop()
+        else:
+            st.warning("⚠️ Esperando archivo... (Se usarán datos demo mientras tanto)")
+            # Datos Demo para que no se vea vacío antes de cargar
+            ventas_mes = 50000.0
+            costo_ventas_mes = 30000.0
+            gasto_alquiler_mes = 5000.0
+            gasto_planilla_mes = 8000.0
+            gasto_otros_mes = 2000.0
+            depreciacion_mes = 2000.0
+            intereses_mes = 1000.0
+            impuestos_mes = 1500.0
 
-# Normalización de P&L
-ventas_mes = ventas_input / divisor
-costo_ventas_mes = costo_ventas_input / divisor
-gasto_alquiler_mes = gasto_alquiler_input / divisor
-gasto_planilla_mes = gasto_planilla_input / divisor
-gasto_otros_mes = gasto_otros_input / divisor
+    # --- BALANCE GENERAL (SIEMPRE VISIBLE) ---
+    with st.expander("Balance General (Saldos)", expanded=True):
+        st.caption("FOTO ACTUAL (No se divide ni promedia)")
+        inventario = st.number_input("Inventario ($)", value=20000.0)
+        cuentas_cobrar = st.number_input("Cuentas por Cobrar ($)", value=15000.0)
+        cuentas_pagar = st.number_input("Cuentas por Pagar ($)", value=10000.0)
+
+# ==========================================
+# CÁLCULOS CENTRALES (BACKEND)
+# ==========================================
 gastos_operativos_mes = gasto_alquiler_mes + gasto_planilla_mes + gasto_otros_mes
 
-depreciacion_mes = depreciacion_input / divisor
-intereses_mes = intereses_input / divisor
-impuestos_mes = impuestos_input / divisor
-
-# --- 5. CÁLCULOS PRINCIPALES ---
-
-# Potencia
+# 1. Potencia
 utilidad_bruta_mes = ventas_mes - costo_ventas_mes
 margen_bruto = (utilidad_bruta_mes / ventas_mes) * 100 if ventas_mes > 0 else 0
 
@@ -113,108 +165,74 @@ ebit_mes = ebitda_mes - depreciacion_mes
 utilidad_neta_mes = ebit_mes - intereses_mes - impuestos_mes
 margen_neto = (utilidad_neta_mes / ventas_mes) * 100 if ventas_mes > 0 else 0
 
-# Ratios Eficiencia
+# 2. Ratios
 ratio_alquiler = (gasto_alquiler_mes / ventas_mes) * 100 if ventas_mes > 0 else 0
 ratio_planilla = (gasto_planilla_mes / utilidad_bruta_mes) * 100 if utilidad_bruta_mes > 0 else 0
 
-# Supervivencia
+# 3. Supervivencia
 costos_fijos_totales_mes = gastos_operativos_mes + intereses_mes
 margen_contribucion_pct = (utilidad_bruta_mes / ventas_mes) if ventas_mes > 0 else 0
 punto_equilibrio_mes = costos_fijos_totales_mes / margen_contribucion_pct if margen_contribucion_pct > 0 else 0
 margen_seguridad_mes = ventas_mes - punto_equilibrio_mes
 
-# Oxígeno (CCC)
+# 4. Oxígeno (CCC)
 dias_calle = (cuentas_cobrar / ventas_mes) * 30 if ventas_mes > 0 else 0
 dias_inventario = (inventario / costo_ventas_mes) * 30 if costo_ventas_mes > 0 else 0
 dias_proveedor = (cuentas_pagar / costo_ventas_mes) * 30 if costo_ventas_mes > 0 else 0
 ccc = dias_calle + dias_inventario - dias_proveedor
-
 dinero_atrapado_total = cuentas_cobrar + inventario
 
-# Valoración Base (Para Tab 1)
-valor_empresa_actual = (ebitda_mes * 12) * 3 if ebitda_mes > 0 else 0
-
-# Juez Digital
+# 5. Juez Digital
 veredicto_final = ""
 icono_veredicto = "⚖️"
 if ebitda_mes < 0:
-    veredicto_final = "INTERVENCIÓN DE EMERGENCIA NECESARIA. El modelo de negocio está consumiendo capital. Problema Estructural."
+    veredicto_final = "INTERVENCIÓN DE EMERGENCIA. El negocio consume capital. Problema estructural."
     icono_veredicto = "🚨"
 elif ccc > 60:
-    veredicto_final = "SÍNDROME DE 'AGUJERO NEGRO'. Rentable pero insolvente. Prioridad: COBRAR."
+    veredicto_final = "AGUJERO NEGRO. Rentable pero insolvente. Prioridad: Cobrar."
     icono_veredicto = "🕳️"
 elif ratio_alquiler > 15:
-    veredicto_final = "RIESGO INMOBILIARIO. Estás trabajando para pagar el local."
+    veredicto_final = "RIESGO INMOBILIARIO. Trabajas para pagar el local."
     icono_veredicto = "🏢"
 else:
     veredicto_final = "EMPRESA SALUDABLE Y ESCALABLE. Listo para crecer."
     icono_veredicto = "✅"
 
-# --- 6. DASHBOARD VISUAL (TABS) ---
+# ==========================================
+# DASHBOARD VISUAL (TABS)
+# ==========================================
 
-# Veredicto
+# Veredicto Global
 st.markdown(f"""<div class="verdict-box"><h3>{icono_veredicto} Veredicto de la Estratega:</h3><p style="font-size: 18px;">"{veredicto_final}"</p></div>""", unsafe_allow_html=True)
 
-# TABS PRINCIPALES
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["💎 Cascada", "🚦 Semáforo", "⚖️ Supervivencia", "🫁 Oxígeno", "📈 Valoración", "🧪 Lab de Precios"])
+# DEFINICIÓN DE PESTAÑAS (AHORA SON 7 SI CONTAMOS MANDÍBULAS)
+tabs = st.tabs(["💎 Cascada", "🦈 Mandíbulas (Tendencia)", "🚦 Semáforo", "⚖️ Supervivencia", "🫁 Oxígeno", "🏆 Valoración V2.5", "🧪 Lab Precios"])
 
-# =========================================================
-# TAB 1: LOS 4 NIVELES DE POTENCIA (DISEÑO EXTENDIDO RESTAURADO)
-# =========================================================
-with tab1:
+# --- TAB 1: CASCADA (DIAGNÓSTICO FOTO) ---
+with tabs[0]:
     col_main, col_chart = st.columns([1.2, 1])
-    
     with col_main:
-        st.subheader("Diagnóstico de los 4 Niveles de Potencia")
-        st.caption("Análisis de salud financiera capa por capa.")
+        st.subheader("Diagnóstico de Potencia (Foto Promedio)")
+        st.caption("Análisis capa por capa.")
         
-        # --- SECCIÓN VALORACIÓN BASE ---
-        if valor_empresa_actual > 0:
-            st.markdown(f"""
-            <div class="valuation-box">
-                <h4>Valor Ref. (Base 3x):</h4>
-                <h1 style="color: #1b5e20;">${valor_empresa_actual:,.2f}</h1>
-                <p><em>Ve a la Pestaña 5 para personalizar el múltiplo.</em></p>
-            </div>
-            """, unsafe_allow_html=True)
-        else:
-            st.error("Tu empresa hoy vale $0.00 para un inversor (EBITDA Negativo).")
-            
-        st.markdown("---")
-        
-        # --- NIVEL 1: POTENCIA COMERCIAL ---
-        st.markdown('<div class="power-level-title">Nivel 1: Potencia Comercial (Utilidad Bruta)</div>', unsafe_allow_html=True)
+        # Nivel 1
+        st.markdown('<div class="power-level-title">Nivel 1: Potencia Comercial (Bruta)</div>', unsafe_allow_html=True)
         st.markdown(f'<div class="power-value">${utilidad_bruta_mes:,.2f} (Margen: {margen_bruto:.1f}%)</div>', unsafe_allow_html=True)
-        
-        if margen_bruto > 30:
-            st.markdown('<div class="check-box-success">✅ <strong>Saludable:</strong> Tienes un modelo de precios y costos de venta correcto.</div>', unsafe_allow_html=True)
-        else:
-            st.markdown('<div class="check-box-warning">⚠️ <strong>Alerta:</strong> Tu margen bruto es bajo. Revisa precios o proveedores.</div>', unsafe_allow_html=True)
+        if margen_bruto > 30: st.markdown('<div class="check-box-success">✅ Modelo Saludable.</div>', unsafe_allow_html=True)
+        else: st.markdown('<div class="check-box-warning">⚠️ Margen Bajo.</div>', unsafe_allow_html=True)
 
-        # --- NIVEL 2: POTENCIA OPERATIVA ---
-        st.markdown('<div class="power-level-title">Nivel 2: Potencia Operativa (EBITDA) - El Corazón</div>', unsafe_allow_html=True)
+        # Nivel 2
+        st.markdown('<div class="power-level-title">Nivel 2: Potencia Operativa (EBITDA)</div>', unsafe_allow_html=True)
         st.markdown(f'<div class="power-value">${ebitda_mes:,.2f} (Margen: {margen_ebitda:.1f}%)</div>', unsafe_allow_html=True)
+        if ebitda_mes > 0 and margen_ebitda > 10: st.markdown('<div class="check-box-success">✅ Corazón Fuerte.</div>', unsafe_allow_html=True)
+        elif ebitda_mes > 0: st.markdown('<div class="check-box-warning">⚠️ Vulnerable.</div>', unsafe_allow_html=True)
+        else: st.markdown('<div class="check-box-danger">🚨 Quema Efectivo.</div>', unsafe_allow_html=True)
 
-        if ebitda_mes > 0 and margen_ebitda > 10:
-             st.markdown('<div class="check-box-success">✅ <strong>Fuerte:</strong> El corazón de tu negocio late con fuerza. Generas caja operativa.</div>', unsafe_allow_html=True)
-        elif ebitda_mes > 0:
-             st.markdown('<div class="check-box-warning">⚠️ <strong>Vulnerable:</strong> Generas dinero pero el margen es muy estrecho (< 10%).</div>', unsafe_allow_html=True)
-        else:
-             st.markdown('<div class="check-box-danger">🚨 <strong>CRÍTICO:</strong> El negocio quema efectivo cada mes. Requiere intervención inmediata.</div>', unsafe_allow_html=True)
-
-        # --- NIVEL 3: POTENCIA DE ACTIVOS ---
-        st.markdown('<div class="power-level-title">Nivel 3: Potencia de Activos (EBIT)</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="power-value">${ebit_mes:,.2f} (Margen: {margen_neto:.1f}%)</div>', unsafe_allow_html=True)
-        st.caption("Resultado después de depreciaciones (desgaste de equipos).")
-
-        # --- NIVEL 4: POTENCIA PATRIMONIAL ---
-        st.markdown('<div class="power-level-title">Nivel 4: Potencia Patrimonial (Utilidad Neta)</div>', unsafe_allow_html=True)
+        # Nivel 3 y 4
+        st.markdown('<div class="power-level-title">Nivel 3: Potencia Activos (EBIT)</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="power-value">${ebit_mes:,.2f}</div>', unsafe_allow_html=True)
+        st.markdown('<div class="power-level-title">Nivel 4: Potencia Patrimonial (Neta)</div>', unsafe_allow_html=True)
         st.markdown(f'<div class="power-value">${utilidad_neta_mes:,.2f} (Margen: {margen_neto:.1f}%)</div>', unsafe_allow_html=True)
-        
-        if utilidad_neta_mes > 0:
-             st.markdown('<div class="check-box-success">✅ <strong>Ganancia Real:</strong> El dueño está ganando dinero después de todo.</div>', unsafe_allow_html=True)
-        else:
-             st.markdown('<div class="check-box-danger">🚨 <strong>Pérdida:</strong> El dueño está perdiendo dinero o trabajando gratis.</div>', unsafe_allow_html=True)
 
     with col_chart:
         fig_waterfall = go.Figure(go.Waterfall(
@@ -227,273 +245,210 @@ with tab1:
             increasing = {"marker":{"color":"#66bb6a"}},
             totals = {"marker":{"color":"#1565c0"}}
         ))
-        fig_waterfall.update_layout(title="Cascada Detallada (Mensual)", showlegend=False, height=600)
+        fig_waterfall.update_layout(title="Cascada Detallada", height=600)
         st.plotly_chart(fig_waterfall, use_container_width=True)
 
-# TAB 2: SEMÁFORO
-with tab2:
+# --- TAB 2: LAS MANDÍBULAS (TENDENCIAS) ---
+with tabs[1]:
+    st.subheader("🦈 Las Mandíbulas de la Muerte (Tendencias)")
+    
+    if modo_operacion == "Modo A: Diagnóstico Flash (Foto)":
+        st.warning("⚠️ Esta función solo está disponible en 'Modo B: Estratega' cargando un Excel de 12 meses.")
+        st.image("https://via.placeholder.com/800x400.png?text=Gráfico+de+Tendencias+Solo+Disponible+en+Modo+Estratega", use_container_width=True)
+    
+    elif df_historico is not None:
+        # Preparar datos para el gráfico
+        df_historico['Costos_Totales'] = df_historico['Costo_Ventas'] + df_historico['Alquiler'] + df_historico['Planilla'] + df_historico['Otros_Gastos']
+        
+        # Gráfico de Líneas (Jaws)
+        fig_jaws = go.Figure()
+        fig_jaws.add_trace(go.Scatter(x=df_historico['Mes'], y=df_historico['Ventas'], mode='lines+markers', name='Ventas (Azul)', line=dict(color='blue', width=3)))
+        fig_jaws.add_trace(go.Scatter(x=df_historico['Mes'], y=df_historico['Costos_Totales'], mode='lines+markers', name='Costos Totales (Rojo)', line=dict(color='red', width=3)))
+        
+        fig_jaws.update_layout(title="Análisis de Tendencia: ¿Las líneas se abren o se cruzan?", xaxis_title="Mes", yaxis_title="Dinero ($)", height=500)
+        st.plotly_chart(fig_jaws, use_container_width=True)
+        
+        # Diagnóstico Automático de Tendencia
+        tendencia_ventas = df_historico['Ventas'].iloc[-1] - df_historico['Ventas'].iloc[0]
+        tendencia_utilidad = (df_historico['Ventas'].iloc[-1] - df_historico['Costos_Totales'].iloc[-1]) - (df_historico['Ventas'].iloc[0] - df_historico['Costos_Totales'].iloc[0])
+        
+        c1, c2 = st.columns(2)
+        with c1:
+            if tendencia_ventas > 0: st.success("📈 Tus ventas están creciendo.")
+            else: st.error("📉 Tus ventas están cayendo.")
+        with c2:
+            if tendencia_utilidad < 0 and tendencia_ventas > 0:
+                st.error("🚨 ALERTA DE MANDÍBULA: Vendes más pero ganas menos. Ineficiencia Operativa (Desconomía de Escala).")
+            elif tendencia_utilidad > 0:
+                st.success("✅ Crecimiento Sano: Ganas más a medida que vendes más.")
+    else:
+        st.info("Carga un archivo en la barra lateral para ver el gráfico.")
+
+# --- TAB 3: SEMÁFORO ---
+with tabs[2]:
     col_renta, col_nomina = st.columns(2)
     with col_renta:
-        color_renta = "green" if ratio_alquiler < 10 else "orange" if ratio_alquiler < 15 else "red"
-        st.markdown(f"**Ratio Alquiler:** {ratio_alquiler:.1f}%")
+        st.metric("Ratio Alquiler", f"{ratio_alquiler:.1f}%")
         st.progress(min(ratio_alquiler/30, 1.0))
-        if color_renta == "red": st.markdown('<p class="alert-danger">🚨 El local es un ancla financiera.</p>', unsafe_allow_html=True)
-        else: st.success("Estructura OK")
-
+        if ratio_alquiler > 15: st.error("🚨 Local: Ancla Financiera")
+        else: st.success("✅ Local: Estructura OK")
     with col_nomina:
-        color_nomina = "green" if ratio_planilla < 30 else "orange" if ratio_planilla < 40 else "red"
-        st.markdown(f"**Eficiencia Planilla:** {ratio_planilla:.1f}%")
+        st.metric("Ratio Planilla", f"{ratio_planilla:.1f}%")
         st.progress(min(ratio_planilla/60, 1.0))
-        if color_nomina == "red": st.markdown('<p class="alert-danger">🚨 Estructura obesa.</p>', unsafe_allow_html=True)
-        else: st.success("Productividad OK")
+        if ratio_planilla > 40: st.error("🚨 Planilla: Estructura Obesa")
+        else: st.success("✅ Planilla: Productiva")
 
-    st.markdown("---")
-    st.subheader("🔮 Simulador de Rescate")
-    c_sim_1, c_sim_2 = st.columns(2)
-    with c_sim_1:
-        meta_alquiler = st.slider("Reducir Alquiler (%)", 0, 50, 0, step=5)
-        meta_planilla = st.slider("Optimizar Planilla (%)", 0, 50, 0, step=5)
-    with c_sim_2:
-        ahorro = (gasto_alquiler_mes * meta_alquiler/100) + (gasto_planilla_mes * meta_planilla/100)
-        nuevo_ebitda = ebitda_mes + ahorro
-        st.markdown(f"""<div class="metric-card"><h4>Impacto</h4><p>Ahorro Mensual: <strong style="color:green">+${ahorro:,.2f}</strong></p><p>Nuevo EBITDA: <strong>${nuevo_ebitda:,.2f}</strong></p></div>""", unsafe_allow_html=True)
-
-# TAB 3: SUPERVIVENCIA
-with tab3:
+# --- TAB 4: SUPERVIVENCIA ---
+with tabs[3]:
     c1, c2 = st.columns(2)
     with c1:
-        st.metric("Punto Equilibrio (Mes)", f"${punto_equilibrio_mes:,.2f}")
-        if margen_seguridad_mes > 0: st.success(f"✅ Zona Segura: ${margen_seguridad_mes:,.2f}")
-        else: st.error(f"🚨 Faltan: ${abs(margen_seguridad_mes):,.2f}")
+        st.metric("Punto Equilibrio Mensual", f"${punto_equilibrio_mes:,.2f}")
+        if margen_seguridad_mes > 0: st.success(f"✅ Margen Seguridad: ${margen_seguridad_mes:,.2f}")
+        else: st.error(f"🚨 Faltan Ventas: ${abs(margen_seguridad_mes):,.2f}")
     with c2:
-        pct_safe = (margen_seguridad_mes / ventas_mes) * 100 if ventas_mes > 0 else 0
-        fig = go.Figure(go.Indicator(mode="gauge+number", value=pct_safe, title={'text':"Seguridad %"}, gauge={'axis':{'range':[-50,100]}, 'bar':{'color':"green" if pct_safe>10 else "red"}}))
-        fig.update_layout(height=250)
-        st.plotly_chart(fig, use_container_width=True)
+        # Gráfico de P.E. Visual (Simplificado)
+        pct_meta = (ventas_mes / punto_equilibrio_mes) * 100 if punto_equilibrio_mes > 0 else 0
+        st.markdown(f"**Estás al {pct_meta:.0f}% de tu meta de supervivencia.**")
+        st.progress(min(pct_meta/200, 1.0))
 
-# TAB 4: OXÍGENO
-with tab4:
+# --- TAB 5: OXÍGENO ---
+with tabs[4]:
     c1, c2 = st.columns(2)
     with c1:
-        st.metric("Ciclo de Caja", f"{ccc:.0f} días")
-        if ccc > 0: st.warning(f"Tardas {ccc:.0f} días en recuperar tu dinero.")
-        else: st.success("Ciclo Negativo (Financiado).")
+        st.metric("Ciclo de Caja (CCC)", f"{ccc:.0f} días")
+        if ccc > 0: st.warning("Tardas en recuperar tu dinero.")
+        else: st.success("Te financias con proveedores.")
     with c2:
         st.markdown(f"""<div class="money-trap"><h4>💸 Efectivo Atrapado</h4><p>Total: <strong>${dinero_atrapado_total:,.2f}</strong></p></div>""", unsafe_allow_html=True)
 
-# TAB 5: VALORACIÓN DE MERCADO
-# TAB 5: VALORACIÓN (EL MOTOR DE RIQUEZA - V2.5)
-with tab5:
-    st.subheader("🏆 El Motor de Riqueza: Valoración y Legado")
-    st.caption("Calculamos el valor real de tu patrimonio, separando el negocio del ladrillo.")
+# --- TAB 6: VALORACIÓN V2.5 (PATRIMONIO NETO) ---
+with tabs[5]:
+    st.subheader("🏆 Motor de Riqueza: Valoración & Legado")
+    st.caption("Separamos el negocio del ladrillo para ver tu Patrimonio Real.")
 
-    # --- SECCIÓN 1: NORMALIZACIÓN (OpCo vs PropCo) ---
-    st.markdown("### 1. Normalización Operativa")
-    
-    col_norm_1, col_norm_2 = st.columns([1, 1])
-    with col_norm_1:
-        es_dueno_local = st.checkbox("¿El cliente es dueño del local?", value=False)
+    # 1. Normalización (OpCo vs PropCo)
+    col_prop_1, col_prop_2 = st.columns(2)
+    with col_prop_1:
+        es_dueno = st.checkbox("¿Cliente es dueño del local?", value=False)
     
     alquiler_virtual = 0.0
     valor_edificio = 0.0
     
-    with col_norm_2:
-        if es_dueno_local:
-            st.info("🏠 **Modo PropCo:** Al negocio se le debe restar un 'Alquiler de Mercado' para saber su rentabilidad real.")
-            alquiler_virtual_input = st.number_input("Alquiler de Mercado (Virtual Mensual) $", value=2000.0, step=100.0)
-            valor_edificio = st.number_input("Valor Comercial del Inmueble $", value=250000.0, step=5000.0)
-            
-            # Ajuste de EBITDA (Anualizado)
-            alquiler_virtual_anual = alquiler_virtual_input * 12
-            # Si estamos en modo mensual, el ebitda_mes ya tiene descontado gastos reales. 
-            # Aquí asumimos que si es dueño, NO metió alquiler en gastos. Restamos el virtual.
-            ebitda_ajustado_anual = (ebitda_mes * 12) - alquiler_virtual_anual
-        else:
-            ebitda_ajustado_anual = ebitda_mes * 12
-
-    st.markdown("---")
-
-    # --- SECCIÓN 2: EL MÚLTIPLO (LA CALIDAD) ---
-    col_val_1, col_val_2 = st.columns([1, 1])
+    if es_dueno:
+        with col_prop_2:
+            alquiler_virtual = st.number_input("Alquiler Virtual de Mercado ($)", value=2000.0)
+            valor_edificio = st.number_input("Valor Comercial del Edificio ($)", value=250000.0)
     
+    # Cálculo EBITDA Ajustado
+    ebitda_ajustado = (ebitda_mes - alquiler_virtual) * 12 # Anualizado
+    
+    st.markdown("---")
+    
+    # 2. El Múltiplo
+    col_val_1, col_val_2 = st.columns(2)
     with col_val_1:
-        st.markdown("### 2. Calidad del Negocio")
-        multiplo_seleccionado = st.selectbox(
-            "Selecciona el Factor Multiplicador:",
-            options=[2, 3, 4, 5, 6],
-            index=1, 
-            help="2x: Autoempleo/Riesgo. 3x: PYME Estándar. 5x: Gerencia Profesional."
-        )
-        st.metric("EBITDA Anual Ajustado", f"${ebitda_ajustado_anual:,.2f}")
-
+        multiplo = st.selectbox("Calidad del Negocio (Múltiplo)", [2, 3, 4, 5, 6], index=1, help="2x: Autoempleo, 5x: Gerencia Pro.")
+        valor_operativo = ebitda_ajustado * multiplo
     with col_val_2:
-        valor_operativo = ebitda_ajustado_anual * multiplo_seleccionado
         if valor_operativo > 0:
-            st.markdown(f"""
-            <div class="metric-card" style="border-left: 5px solid #2e7d32;">
-                <h4>Valor Operativo del Negocio (OpCo)</h4>
-                <h1 style="color: #2e7d32;">${valor_operativo:,.2f}</h1>
-                <p>Lo que vale la "Máquina de Hacer Dinero"</p>
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown(f"""<div class="metric-card"><h4>Valor Operativo (OpCo)</h4><h2 style="color:green">${valor_operativo:,.2f}</h2></div>""", unsafe_allow_html=True)
         else:
-            st.error("🚨 El negocio no tiene valor comercial porque pierde dinero (EBITDA Ajustado Negativo).")
+            st.error("🚨 El negocio no vale nada (EBITDA Ajustado Negativo).")
             valor_operativo = 0
 
     st.markdown("---")
 
-    # --- SECCIÓN 3: PATRIMONIO NETO (NET WORTH) ---
-    st.markdown("### 3. Tu Patrimonio Real (Net Worth)")
-    st.caption("Ecuación: Valor Negocio + Valor Edificio - Deuda Bancaria = Riqueza Real")
+    # 3. Patrimonio Neto
+    st.subheader("💎 Tu Patrimonio Real (Net Worth)")
+    deuda = st.number_input("Deuda Bancaria Total ($)", value=0.0)
+    patrimonio = valor_operativo + valor_edificio - deuda
     
-    deuda_bancaria = st.number_input("Deuda Bancaria Total (Préstamos/Hipotecas) $", value=0.0, step=1000.0)
-    
-    patrimonio_real = valor_operativo + valor_edificio - deuda_bancaria
-    
-    col_final_1, col_final_2 = st.columns([1.5, 1])
-    
-    with col_final_1:
-        st.markdown(f"""
-        <div class="valuation-box" style="background-color: #e3f2fd; border-left: 5px solid #1565c0;">
-            <h3>💎 TU LEGADO PATRIMONIAL</h3>
-            <h1 style="color: #0d47a1; font-size: 40px;">${patrimonio_real:,.2f}</h1>
-            <ul style="list-style-type: none; padding: 0;">
-                <li>➕ Valor Negocio: ${valor_operativo:,.2f}</li>
-                <li>➕ Valor Inmueble: ${valor_edificio:,.2f}</li>
-                <li>➖ Deuda Bancos: <span style="color:red">-${deuda_bancaria:,.2f}</span></li>
-            </ul>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col_final_2:
-        st.info("💡 **Guion de Cierre:** 'Señor Cliente, su empresa puede valer X, pero su riqueza real es lo que queda después de pagar al banco. Vamos a subir este número.'")
+    st.markdown(f"""
+    <div class="valuation-box">
+        <h1 style="color: #0d47a1; text-align: center;">${patrimonio:,.2f}</h1>
+        <p style="text-align: center;">(Negocio + Edificio - Deuda)</p>
+    </div>
+    """, unsafe_allow_html=True)
 
-
-# TAB 6: LABORATORIO DE PRECIOS (INGENIERÍA DE MENÚ - V2.5)
-with tab6:
-    st.subheader("🧪 Laboratorio de Ingeniería de Precios")
-    st.caption("Herramienta Bottom-Up: Calculamos desde el costo hasta el precio de etiqueta.")
-
-    # --- BLOQUE 1: CALCULADORA DE COSTOS (INPUTS) ---
-    st.markdown("### 1. Calculadora de Costos Unitarios")
-    col_inputs_A, col_inputs_B = st.columns(2)
+# --- TAB 7: LAB DE PRECIOS V2.5 ---
+with tabs[6]:
+    st.subheader("🧪 Lab de Precios (Bottom-Up)")
     
-    with col_inputs_A:
-        nombre_producto = st.text_input("Nombre del Producto:", placeholder="Ej. Pastel de Bodas")
-        st.markdown("**A. Materiales (Ingredientes/Insumos)**")
-        df_mat = pd.DataFrame([{"Ingrediente": "Insumo Principal", "Costo ($)": 0.0}, {"Ingrediente": "Empaque/Etiqueta", "Costo ($)": 0.0}])
+    # 1. Costos Unitarios
+    c1, c2 = st.columns(2)
+    with c1:
+        producto = st.text_input("Producto:", "Pastel Boda")
+        df_mat = pd.DataFrame([{"Item": "Insumos", "Costo": 10.0}])
         edited_df = st.data_editor(df_mat, num_rows="dynamic", use_container_width=True)
-        costo_materiales = edited_df["Costo ($)"].sum()
-        st.write(f"💰 Costo Materiales: **${costo_materiales:,.2f}**")
-
-    with col_inputs_B:
-        st.markdown("**B. Mano de Obra Directa (MOD) ¡CRÍTICO!**")
-        st.caption("¿Calculaste tu tiempo? Si no cobras la mano de obra, trabajas gratis.")
+        mat = edited_df["Costo"].sum()
+    with c2:
+        st.markdown("**Mano de Obra (MOD)**")
+        salario = st.number_input("Salario Mes", 600.0)
+        mins = st.number_input("Minutos x Unidad", 60.0)
+        mod = (salario / (192*60)) * mins
         
-        col_mod_1, col_mod_2 = st.columns(2)
-        with col_mod_1:
-            salario = st.number_input("Salario Mensual ($)", value=600.0, help="Salario del operario o pastelero")
-            horas_mes = st.number_input("Horas/Mes", value=192)
-        with col_mod_2:
-            mins_unidad = st.number_input("Minutos x Unidad", value=30, help="Tiempo cronometrado para hacer UNA unidad")
+        capacidad = st.number_input("Capacidad Mes (Unds)", 500)
+        fijos_u = (gastos_operativos_mes / capacidad) if capacidad > 0 else 0
         
-        costo_minuto = salario / (horas_mes * 60)
-        costo_mod = costo_minuto * mins_unidad
-        st.write(f"⏱️ Costo Minuto: ${costo_minuto:.3f} | 👷 **Costo MOD: ${costo_mod:,.2f}**")
-        
-        st.markdown("**C. Indirectos (Carga Fabril)**")
-        gastos_fijos_ref = gastos_operativos_mes if 'gastos_operativos_mes' in locals() else 5000.0
-        capacidad = st.number_input("Capacidad Máxima Mensual (Unds)", value=1000)
-        costo_fijo_u = gastos_fijos_ref / capacidad if capacidad > 0 else 0
-        st.write(f"🏭 Costo Fijo Unit.: **${costo_fijo_u:,.2f}**")
-
-    costo_total_u = costo_materiales + costo_mod + costo_fijo_u
-    st.info(f"📊 **COSTO REAL UNITARIO: ${costo_total_u:,.2f}** (Base para no perder dinero)")
+    costo_u = mat + mod + fijos_u
+    st.info(f"📊 **Costo Real Unitario: ${costo_u:,.2f}** (MOD: ${mod:,.2f})")
+    
     st.markdown("---")
-
-    # --- BLOQUE 2: ESTRATEGIA (MÁRGENES Y COMISIONES) ---
-    st.markdown("### 2. Estrategia de Precio (Slider de Ganancia)")
-    c_strat_1, c_strat_2 = st.columns(2)
     
-    with c_strat_1:
-        st.markdown("##### Define tu Ganancia y Fugas")
-        margen_deseado = st.slider("Margen de Ganancia Real (%)", 10, 80, 30)
-        comision_plat = st.slider("Comisión Plataforma/Tarjeta (%)", 0, 40, 0, help="UberEats, Visa, Vendedores.")
-        
-        if comision_plat > 0:
-            st.warning(f"⚠️ Ojo: La plataforma se lleva el {comision_plat}% del precio final. Debemos subir el precio para proteger tu {margen_deseado}%.")
-    
-    with c_strat_2:
-        # FÓRMULA FINANCIERA CORRECTA (División Inversa)
-        # Precio = Costo / (1 - (Margen% + Comision%))
-        porcentaje_total = (margen_deseado + comision_plat) / 100
-        
-        if porcentaje_total >= 1.0:
-            st.error("🚨 IMPOSIBLE: Margen + Comisión suman 100% o más. Matemáticamente no puedes poner precio.")
-            precio_sugerido = 0
-        else:
-            precio_sugerido = costo_total_u / (1 - porcentaje_total)
-        
-        itbms = precio_sugerido * 0.07
-        precio_final = precio_sugerido + itbms
-        
-        st.markdown(f"""
-        <div style="background-color: #f1f8e9; padding: 15px; border-radius: 10px; text-align: center; border: 2px solid #33691e;">
-            <p style="margin:0; font-weight:bold; color:#555;">PRECIO SUGERIDO DE VENTA</p>
-            <h1 style="color: #33691e; margin:0; font-size: 42px;">${precio_sugerido:,.2f}</h1>
-            <hr style="border-top: 1px dashed #33691e;">
-            <p style="margin:0;">+ ITBMS (7%): ${itbms:,.2f}</p>
-            <h3 style="color: #000; margin:0;">TICKET FINAL: ${precio_final:,.2f}</h3>
-        </div>
-        """, unsafe_allow_html=True)
-
-    # --- BLOQUE 3: MATRIZ COMPARATIVA ---
-    st.markdown("---")
-    st.markdown("### 3. Matriz de Ingeniería de Menú (Comparativa)")
-    
-    col_btns_1, col_btns_2 = st.columns([1, 4])
-    with col_btns_1:
-        if st.button("➕ Agregar a Tabla"):
-            if nombre_producto and precio_sugerido > 0:
-                ganancia_neta = precio_sugerido * (margen_deseado/100)
+    # 2. Estrategia (Fórmula Inversa)
+    c3, c4 = st.columns(2)
+    with c3:
+        margen = st.slider("Margen Deseado (%)", 10, 90, 30)
+        comision = st.slider("Comisión Plataforma (%)", 0, 50, 0)
+    with c4:
+        # FÓRMULA V2.5: Precio = Costo / (1 - (Margen + Comision))
+        denom = 1 - ((margen + comision) / 100)
+        if denom > 0:
+            precio = costo_u / denom
+            itbms = precio * 0.07
+            final = precio + itbms
+            st.markdown(f"""
+            <div style="border: 2px solid green; padding: 10px; border-radius: 10px; text-align: center;">
+                <h3>Precio Sugerido: ${precio:,.2f}</h3>
+                <p>+ ITBMS: ${itbms:,.2f} | <strong>Ticket: ${final:,.2f}</strong></p>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # Botón Guardar
+            if st.button("➕ Agregar a Tabla"):
                 st.session_state.lab_precios.append({
-                    "Producto": nombre_producto,
-                    "Costo Real": f"${costo_total_u:,.2f}",
-                    "Precio Venta": f"${precio_sugerido:,.2f}",
-                    "Margen %": f"{margen_deseado}%",
-                    "Ganancia Neta": f"${ganancia_neta:,.2f}",
-                    "Fuga/Comisión": f"{comision_plat}%"
+                    "Producto": producto, "Costo": f"${costo_u:,.2f}", "Precio": f"${precio:,.2f}", 
+                    "Margen": f"{margen}%", "Ganancia": f"${precio*(margen/100):,.2f}"
                 })
-                st.success("Agregado")
-    with col_btns_2:
-        if st.button("🗑️ Limpiar Tabla"):
+        else:
+            st.error("🚨 Imposible: Margen + Comisión > 100%")
+
+    # 3. Tabla
+    if st.session_state.lab_precios:
+        st.table(pd.DataFrame(st.session_state.lab_precios))
+        if st.button("Limpiar"):
             st.session_state.lab_precios = []
             st.experimental_rerun()
 
-    if len(st.session_state.lab_precios) > 0:
-        st.table(pd.DataFrame(st.session_state.lab_precios))
-        st.info("💡 **Diagnóstico Pareto:** Revisa qué productos dejan más 'Ganancia Neta' y enfoca tu venta allí.")
-    else:
-        st.info("La tabla está vacía. Calcula productos arriba y agrégalos para comparar.")
-
-# --- PDF GENERATOR ---
-def create_professional_pdf():
+# ==========================================
+# PDF GENERATOR
+# ==========================================
+def create_pdf():
     class PDF(FPDF):
         def header(self):
             self.set_fill_color(21, 101, 192); self.rect(0, 0, 210, 20, 'F')
             self.set_y(5); self.set_font('Arial', 'B', 16); self.set_text_color(255)
-            self.cell(0, 10, 'SG CONSULTING | Informe', 0, 1, 'C'); self.ln(10)
-    pdf = PDF(); pdf.add_page(); pdf.set_font('Arial', '', 12)
-    pdf.cell(0, 10, f"Veredicto: {veredicto_final}", 0, 1)
+            self.cell(0, 10, 'SG CONSULTING | Informe V2.5', 0, 1, 'C'); self.ln(10)
     
-    # Valoración en PDF
-    m_pdf = multiplo_seleccionado if 'multiplo_seleccionado' in globals() else 3
-    val_pdf = (ebitda_mes * 12) * m_pdf
-    pdf.cell(0, 10, f"Valoración ({m_pdf}x): ${val_pdf:,.2f}", 0, 1)
+    pdf = PDF(); pdf.add_page(); pdf.set_font('Arial', '', 12)
+    pdf.set_text_color(0)
+    
+    pdf.cell(0, 10, f"Veredicto: {veredicto_final}", 0, 1)
+    pdf.cell(0, 10, f"EBITDA Mes: ${ebitda_mes:,.2f}", 0, 1)
+    pdf.cell(0, 10, f"Patrimonio Neto Est.: ${patrimonio if 'patrimonio' in locals() else 0:,.2f}", 0, 1)
     
     return pdf.output(dest='S').encode('latin-1', 'replace')
 
 st.sidebar.markdown("---")
 if st.sidebar.button("📄 Descargar PDF"):
-    st.sidebar.download_button("💾 Guardar", data=create_professional_pdf(), file_name="SG_Informe.pdf", mime="application/pdf")
-
+    st.sidebar.download_button("💾 Guardar Informe", data=create_pdf(), file_name="SG_Informe_V2.5.pdf", mime="application/pdf")
