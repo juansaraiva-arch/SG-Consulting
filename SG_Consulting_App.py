@@ -282,110 +282,199 @@ with tab4:
         st.markdown(f"""<div class="money-trap"><h4>💸 Efectivo Atrapado</h4><p>Total: <strong>${dinero_atrapado_total:,.2f}</strong></p></div>""", unsafe_allow_html=True)
 
 # TAB 5: VALORACIÓN DE MERCADO
+# TAB 5: VALORACIÓN (EL MOTOR DE RIQUEZA - V2.5)
 with tab5:
-    st.subheader("📈 Calculadora de Valoración")
-    ebitda_anualizado = ebitda_mes * 12
-    c_input, c_result = st.columns([1, 1])
-    
-    with c_input:
-        st.info("Fórmula: (EBITDA Mes x 12) x Múltiplo")
-        st.metric("EBITDA Anualizado", f"${ebitda_anualizado:,.2f}")
-        multiplo_seleccionado = st.selectbox("Factor Multiplicador:", options=[2, 3, 4, 5, 6], index=1)
-    
-    with c_result:
-        valor_mercado_final = ebitda_anualizado * multiplo_seleccionado
-        if valor_mercado_final > 0:
-            st.markdown(f"""<div class="valuation-box" style="text-align: center;"><h3>Tu Empresa Vale:</h3><h1 style="color: #1b5e20;">${valor_mercado_final:,.2f}</h1><p>(EBITDA Anual x {multiplo_seleccionado})</p></div>""", unsafe_allow_html=True)
-        else:
-            st.warning("⚠️ EBITDA Negativo.")
-    st.markdown("""<div class="legal-footer">* Nota Legal: Estimación basada en Múltiplos. Uso estratégico.</div>""", unsafe_allow_html=True)
+    st.subheader("🏆 El Motor de Riqueza: Valoración y Legado")
+    st.caption("Calculamos el valor real de tu patrimonio, separando el negocio del ladrillo.")
 
-# =========================================================
-# TAB 6: LABORATORIO DE PRECIOS (3 BLOQUES VERTICALES)
-# =========================================================
+    # --- SECCIÓN 1: NORMALIZACIÓN (OpCo vs PropCo) ---
+    st.markdown("### 1. Normalización Operativa")
+    
+    col_norm_1, col_norm_2 = st.columns([1, 1])
+    with col_norm_1:
+        es_dueno_local = st.checkbox("¿El cliente es dueño del local?", value=False)
+    
+    alquiler_virtual = 0.0
+    valor_edificio = 0.0
+    
+    with col_norm_2:
+        if es_dueno_local:
+            st.info("🏠 **Modo PropCo:** Al negocio se le debe restar un 'Alquiler de Mercado' para saber su rentabilidad real.")
+            alquiler_virtual_input = st.number_input("Alquiler de Mercado (Virtual Mensual) $", value=2000.0, step=100.0)
+            valor_edificio = st.number_input("Valor Comercial del Inmueble $", value=250000.0, step=5000.0)
+            
+            # Ajuste de EBITDA (Anualizado)
+            alquiler_virtual_anual = alquiler_virtual_input * 12
+            # Si estamos en modo mensual, el ebitda_mes ya tiene descontado gastos reales. 
+            # Aquí asumimos que si es dueño, NO metió alquiler en gastos. Restamos el virtual.
+            ebitda_ajustado_anual = (ebitda_mes * 12) - alquiler_virtual_anual
+        else:
+            ebitda_ajustado_anual = ebitda_mes * 12
+
+    st.markdown("---")
+
+    # --- SECCIÓN 2: EL MÚLTIPLO (LA CALIDAD) ---
+    col_val_1, col_val_2 = st.columns([1, 1])
+    
+    with col_val_1:
+        st.markdown("### 2. Calidad del Negocio")
+        multiplo_seleccionado = st.selectbox(
+            "Selecciona el Factor Multiplicador:",
+            options=[2, 3, 4, 5, 6],
+            index=1, 
+            help="2x: Autoempleo/Riesgo. 3x: PYME Estándar. 5x: Gerencia Profesional."
+        )
+        st.metric("EBITDA Anual Ajustado", f"${ebitda_ajustado_anual:,.2f}")
+
+    with col_val_2:
+        valor_operativo = ebitda_ajustado_anual * multiplo_seleccionado
+        if valor_operativo > 0:
+            st.markdown(f"""
+            <div class="metric-card" style="border-left: 5px solid #2e7d32;">
+                <h4>Valor Operativo del Negocio (OpCo)</h4>
+                <h1 style="color: #2e7d32;">${valor_operativo:,.2f}</h1>
+                <p>Lo que vale la "Máquina de Hacer Dinero"</p>
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.error("🚨 El negocio no tiene valor comercial porque pierde dinero (EBITDA Ajustado Negativo).")
+            valor_operativo = 0
+
+    st.markdown("---")
+
+    # --- SECCIÓN 3: PATRIMONIO NETO (NET WORTH) ---
+    st.markdown("### 3. Tu Patrimonio Real (Net Worth)")
+    st.caption("Ecuación: Valor Negocio + Valor Edificio - Deuda Bancaria = Riqueza Real")
+    
+    deuda_bancaria = st.number_input("Deuda Bancaria Total (Préstamos/Hipotecas) $", value=0.0, step=1000.0)
+    
+    patrimonio_real = valor_operativo + valor_edificio - deuda_bancaria
+    
+    col_final_1, col_final_2 = st.columns([1.5, 1])
+    
+    with col_final_1:
+        st.markdown(f"""
+        <div class="valuation-box" style="background-color: #e3f2fd; border-left: 5px solid #1565c0;">
+            <h3>💎 TU LEGADO PATRIMONIAL</h3>
+            <h1 style="color: #0d47a1; font-size: 40px;">${patrimonio_real:,.2f}</h1>
+            <ul style="list-style-type: none; padding: 0;">
+                <li>➕ Valor Negocio: ${valor_operativo:,.2f}</li>
+                <li>➕ Valor Inmueble: ${valor_edificio:,.2f}</li>
+                <li>➖ Deuda Bancos: <span style="color:red">-${deuda_bancaria:,.2f}</span></li>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col_final_2:
+        st.info("💡 **Guion de Cierre:** 'Señor Cliente, su empresa puede valer X, pero su riqueza real es lo que queda después de pagar al banco. Vamos a subir este número.'")
+
+
+# TAB 6: LABORATORIO DE PRECIOS (INGENIERÍA DE MENÚ - V2.5)
 with tab6:
     st.subheader("🧪 Laboratorio de Ingeniería de Precios")
-    st.caption("Calculadora 'Bottom-Up': Define tus costos unitarios para encontrar el precio de venta real.")
+    st.caption("Herramienta Bottom-Up: Calculamos desde el costo hasta el precio de etiqueta.")
 
     # --- BLOQUE 1: CALCULADORA DE COSTOS (INPUTS) ---
     st.markdown("### 1. Calculadora de Costos Unitarios")
     col_inputs_A, col_inputs_B = st.columns(2)
     
     with col_inputs_A:
-        nombre_producto = st.text_input("Nombre del Producto:", placeholder="Ej. Hamburguesa Especial")
-        st.markdown("**A. Materiales (Receta)**")
-        df_mat = pd.DataFrame([{"Ingrediente": "Insumo 1", "Costo ($)": 0.0}, {"Ingrediente": "Insumo 2", "Costo ($)": 0.0}])
+        nombre_producto = st.text_input("Nombre del Producto:", placeholder="Ej. Pastel de Bodas")
+        st.markdown("**A. Materiales (Ingredientes/Insumos)**")
+        df_mat = pd.DataFrame([{"Ingrediente": "Insumo Principal", "Costo ($)": 0.0}, {"Ingrediente": "Empaque/Etiqueta", "Costo ($)": 0.0}])
         edited_df = st.data_editor(df_mat, num_rows="dynamic", use_container_width=True)
         costo_materiales = edited_df["Costo ($)"].sum()
         st.write(f"💰 Costo Materiales: **${costo_materiales:,.2f}**")
 
     with col_inputs_B:
-        st.markdown("**B. Mano de Obra y Fijos**")
-        salario = st.number_input("Salario Operario ($)", value=600.0)
-        horas_mes = st.number_input("Horas Laborales/Mes", value=192)
-        mins_unidad = st.number_input("Minutos/Unidad", value=15)
-        costo_mod = (salario / (horas_mes*60)) * mins_unidad
-        st.write(f"👷 Costo MOD: **${costo_mod:,.2f}**")
+        st.markdown("**B. Mano de Obra Directa (MOD) ¡CRÍTICO!**")
+        st.caption("¿Calculaste tu tiempo? Si no cobras la mano de obra, trabajas gratis.")
         
-        capacidad = st.number_input("Capacidad Mensual (Unds)", value=1000)
+        col_mod_1, col_mod_2 = st.columns(2)
+        with col_mod_1:
+            salario = st.number_input("Salario Mensual ($)", value=600.0, help="Salario del operario o pastelero")
+            horas_mes = st.number_input("Horas/Mes", value=192)
+        with col_mod_2:
+            mins_unidad = st.number_input("Minutos x Unidad", value=30, help="Tiempo cronometrado para hacer UNA unidad")
+        
+        costo_minuto = salario / (horas_mes * 60)
+        costo_mod = costo_minuto * mins_unidad
+        st.write(f"⏱️ Costo Minuto: ${costo_minuto:.3f} | 👷 **Costo MOD: ${costo_mod:,.2f}**")
+        
+        st.markdown("**C. Indirectos (Carga Fabril)**")
         gastos_fijos_ref = gastos_operativos_mes if 'gastos_operativos_mes' in locals() else 5000.0
+        capacidad = st.number_input("Capacidad Máxima Mensual (Unds)", value=1000)
         costo_fijo_u = gastos_fijos_ref / capacidad if capacidad > 0 else 0
         st.write(f"🏭 Costo Fijo Unit.: **${costo_fijo_u:,.2f}**")
 
     costo_total_u = costo_materiales + costo_mod + costo_fijo_u
-    st.info(f"📊 **COSTO TOTAL UNITARIO: ${costo_total_u:,.2f}**")
+    st.info(f"📊 **COSTO REAL UNITARIO: ${costo_total_u:,.2f}** (Base para no perder dinero)")
     st.markdown("---")
 
-    # --- BLOQUE 2: ESTRATEGIA (MÁRGENES) ---
-    st.markdown("### 2. Definidor de Estrategia")
+    # --- BLOQUE 2: ESTRATEGIA (MÁRGENES Y COMISIONES) ---
+    st.markdown("### 2. Estrategia de Precio (Slider de Ganancia)")
     c_strat_1, c_strat_2 = st.columns(2)
     
     with c_strat_1:
-        margen_deseado = st.slider("Margen Deseado (%)", 10, 60, 30)
-        comision_plat = st.slider("Comisión Plataforma (%)", 0, 40, 5)
+        st.markdown("##### Define tu Ganancia y Fugas")
+        margen_deseado = st.slider("Margen de Ganancia Real (%)", 10, 80, 30)
+        comision_plat = st.slider("Comisión Plataforma/Tarjeta (%)", 0, 40, 0, help="UberEats, Visa, Vendedores.")
+        
+        if comision_plat > 0:
+            st.warning(f"⚠️ Ojo: La plataforma se lleva el {comision_plat}% del precio final. Debemos subir el precio para proteger tu {margen_deseado}%.")
     
     with c_strat_2:
-        denom = 1 - ((margen_deseado + comision_plat) / 100)
-        precio_sugerido = costo_total_u / denom if denom > 0 else 0
+        # FÓRMULA FINANCIERA CORRECTA (División Inversa)
+        # Precio = Costo / (1 - (Margen% + Comision%))
+        porcentaje_total = (margen_deseado + comision_plat) / 100
+        
+        if porcentaje_total >= 1.0:
+            st.error("🚨 IMPOSIBLE: Margen + Comisión suman 100% o más. Matemáticamente no puedes poner precio.")
+            precio_sugerido = 0
+        else:
+            precio_sugerido = costo_total_u / (1 - porcentaje_total)
+        
         itbms = precio_sugerido * 0.07
         precio_final = precio_sugerido + itbms
         
         st.markdown(f"""
-        <div style="background-color: #f1f8e9; padding: 15px; border-radius: 10px; text-align: center; border: 1px solid #33691e;">
-            <p style="margin:0;">Precio Sugerido</p>
-            <h2 style="color: #33691e; margin:0;">${precio_sugerido:,.2f}</h2>
-            <p>+ ITBMS: ${itbms:,.2f} | <strong>Total: ${precio_final:,.2f}</strong></p>
+        <div style="background-color: #f1f8e9; padding: 15px; border-radius: 10px; text-align: center; border: 2px solid #33691e;">
+            <p style="margin:0; font-weight:bold; color:#555;">PRECIO SUGERIDO DE VENTA</p>
+            <h1 style="color: #33691e; margin:0; font-size: 42px;">${precio_sugerido:,.2f}</h1>
+            <hr style="border-top: 1px dashed #33691e;">
+            <p style="margin:0;">+ ITBMS (7%): ${itbms:,.2f}</p>
+            <h3 style="color: #000; margin:0;">TICKET FINAL: ${precio_final:,.2f}</h3>
         </div>
         """, unsafe_allow_html=True)
-    
-    with st.expander("Ver Desglose del Dinero"):
-        ganancia_real = precio_sugerido * (margen_deseado/100)
-        st.write(f"Precio: ${precio_sugerido:,.2f} | Costo: -${costo_total_u:,.2f} | Comis.: -${precio_sugerido*(comision_plat/100):,.2f} | Ganancia: ${ganancia_real:,.2f}")
-
-    st.markdown("---")
 
     # --- BLOQUE 3: MATRIZ COMPARATIVA ---
-    st.markdown("### 3. Matriz de Comparación")
+    st.markdown("---")
+    st.markdown("### 3. Matriz de Ingeniería de Menú (Comparativa)")
+    
     col_btns_1, col_btns_2 = st.columns([1, 4])
     with col_btns_1:
-        if st.button("➕ Agregar Producto"):
+        if st.button("➕ Agregar a Tabla"):
             if nombre_producto and precio_sugerido > 0:
+                ganancia_neta = precio_sugerido * (margen_deseado/100)
                 st.session_state.lab_precios.append({
                     "Producto": nombre_producto,
-                    "Costo": f"${costo_total_u:,.2f}",
-                    "Precio": f"${precio_sugerido:,.2f}",
-                    "Margen": f"{margen_deseado}%",
-                    "Ganancia": f"${precio_sugerido*(margen_deseado/100):,.2f}"
+                    "Costo Real": f"${costo_total_u:,.2f}",
+                    "Precio Venta": f"${precio_sugerido:,.2f}",
+                    "Margen %": f"{margen_deseado}%",
+                    "Ganancia Neta": f"${ganancia_neta:,.2f}",
+                    "Fuga/Comisión": f"{comision_plat}%"
                 })
+                st.success("Agregado")
     with col_btns_2:
-        if st.button("🗑️ Borrar Tabla"):
+        if st.button("🗑️ Limpiar Tabla"):
             st.session_state.lab_precios = []
             st.experimental_rerun()
 
     if len(st.session_state.lab_precios) > 0:
         st.table(pd.DataFrame(st.session_state.lab_precios))
+        st.info("💡 **Diagnóstico Pareto:** Revisa qué productos dejan más 'Ganancia Neta' y enfoca tu venta allí.")
     else:
-        st.info("Agrega productos para comparar.")
+        st.info("La tabla está vacía. Calcula productos arriba y agrégalos para comparar.")
 
 # --- PDF GENERATOR ---
 def create_professional_pdf():
@@ -407,3 +496,4 @@ def create_professional_pdf():
 st.sidebar.markdown("---")
 if st.sidebar.button("📄 Descargar PDF"):
     st.sidebar.download_button("💾 Guardar", data=create_professional_pdf(), file_name="SG_Informe.pdf", mime="application/pdf")
+
