@@ -342,18 +342,94 @@ with tabs[2]:
         </div>
         """, unsafe_allow_html=True)
 
-# --- TAB 4: SUPERVIVENCIA ---
+# --- TAB 4: SUPERVIVENCIA (índice 3) ---
 with tabs[3]:
-    c1, c2 = st.columns(2)
-    with c1:
-        st.metric("Punto Equilibrio Mensual", f"${punto_equilibrio_mes:,.2f}")
-        if margen_seguridad_mes > 0: st.success(f"✅ Margen Seguridad: ${margen_seguridad_mes:,.2f}")
-        else: st.error(f"🚨 Faltan Ventas: ${abs(margen_seguridad_mes):,.2f}")
-    with c2:
-        pct_meta = (ventas_mes / punto_equilibrio_mes) * 100 if punto_equilibrio_mes > 0 else 0
-        fig_safe = go.Figure(go.Indicator(mode="gauge+number", value=pct_meta, title={'text':"% Meta P.E."}, gauge={'axis':{'range':[0,200]}, 'bar':{'color':"green" if pct_meta>=100 else "red"}}))
-        fig_safe.update_layout(height=250)
+    st.subheader("⚖️ Línea de Supervivencia & Punto de Equilibrio")
+    
+    col_kpi, col_graph = st.columns([1, 2])
+    
+    with col_kpi:
+        # 1. KPI Numérico
+        st.metric("Punto de Equilibrio (Mes)", f"${punto_equilibrio_mes:,.2f}")
+        
+        # 2. Diagnóstico de Texto
+        if ventas_mes > punto_equilibrio_mes:
+            excedente = ventas_mes - punto_equilibrio_mes
+            st.success(f"✅ **ZONA DE UTILIDAD:** Superaste el umbral por ${excedente:,.2f}.")
+        elif ventas_mes == punto_equilibrio_mes:
+            st.warning("⚠️ **TABLAS:** Ni ganas ni pierdes.")
+        else:
+            faltante = punto_equilibrio_mes - ventas_mes
+            st.error(f"🚨 **ZONA DE PÉRDIDA:** Te faltan ${faltante:,.2f} para cubrir costos.")
+
+        # 3. Medidor (Gauge) de Cobertura
+        pct_cubierto = (ventas_mes / punto_equilibrio_mes) * 100 if punto_equilibrio_mes > 0 else 0
+        
+        fig_safe = go.Figure(go.Indicator(
+            mode="gauge+number", 
+            value=pct_cubierto, 
+            title={'text':"% Cubierto"}, 
+            gauge={'axis':{'range':[0, max(150, pct_cubierto)]}, 
+                   'bar':{'color':"green" if pct_cubierto>=100 else "red"},
+                   'steps': [{'range': [0, 100], 'color': "#ffebee"}, {'range': [100, 300], 'color': "#e8f5e9"}]}
+        ))
+        fig_safe.update_layout(height=280, margin=dict(l=20, r=20, t=50, b=20))
         st.plotly_chart(fig_safe, use_container_width=True)
+
+    with col_graph:
+        # --- GRÁFICO DE PUNTO DE EQUILIBRIO (MÉTODO GRÁFICO) ---
+        # Definimos el rango del gráfico (Eje X: Ventas)
+        max_x = max(ventas_mes, punto_equilibrio_mes) * 1.5
+        x_vals = [0, max_x] 
+        
+        # A. Línea de Costos Fijos (Horizontal constante)
+        y_fijos = [costos_fijos_totales_mes, costos_fijos_totales_mes]
+        
+        # B. Línea de Costo Total (Inicia en Fijos y sube según costos variables)
+        # Ratio de Costo Variable = Costo Ventas / Ventas
+        ratio_cv = (costo_ventas_mes / ventas_mes) if ventas_mes > 0 else 0
+        y_total = [costos_fijos_totales_mes, costos_fijos_totales_mes + (ratio_cv * max_x)]
+        
+        # C. Línea de Ventas (Inicia en 0 y sube 1:1)
+        y_ventas = [0, max_x]
+        
+        # Construcción del Gráfico
+        fig_be = go.Figure()
+        
+        # Traza 1: Costos Fijos (Rojo Punteado)
+        fig_be.add_trace(go.Scatter(x=x_vals, y=y_fijos, mode='lines', name='Costos Fijos', 
+                                    line=dict(color='#ef5350', width=2, dash='dash')))
+        
+        # Traza 2: Costo Total (Naranja)
+        fig_be.add_trace(go.Scatter(x=x_vals, y=y_total, mode='lines', name='Costo Total', 
+                                    line=dict(color='#ffca28', width=3)))
+        
+        # Traza 3: Ventas / Ingresos (Azul Fuerte)
+        fig_be.add_trace(go.Scatter(x=x_vals, y=y_ventas, mode='lines', name='Ventas (Ingresos)', 
+                                    line=dict(color='#1565c0', width=4)))
+        
+        # Traza 4: El Punto de Equilibrio (Marcador)
+        fig_be.add_trace(go.Scatter(
+            x=[punto_equilibrio_mes], y=[punto_equilibrio_mes],
+            mode='markers', name='Punto de Equilibrio',
+            marker=dict(size=12, color='black', symbol='circle-open', line=dict(width=2))
+        ))
+
+        # Etiquetas de Zona (Texto sobre el gráfico)
+        fig_be.add_annotation(x=max_x*0.1, y=costos_fijos_totales_mes*0.8, text="ZONA PÉRDIDA", showarrow=False, font=dict(color="red", size=10))
+        fig_be.add_annotation(x=max_x*0.9, y=max_x*0.95, text="ZONA UTILIDAD", showarrow=False, font=dict(color="green", size=10))
+
+        # Configuración Final
+        fig_be.update_layout(
+            title="Gráfico de Equilibrio: ¿Dónde cruzas la línea?",
+            xaxis_title="Volumen de Ventas ($)",
+            yaxis_title="Dinero ($)",
+            hovermode="x unified",
+            height=450,
+            legend=dict(orientation="h", y=1.1)
+        )
+        
+        st.plotly_chart(fig_be, use_container_width=True)
 
 # --- TAB 5: OXÍGENO ---
 with tabs[4]:
@@ -471,3 +547,4 @@ def create_pdf():
 st.sidebar.markdown("---")
 if st.sidebar.button("📄 Descargar PDF"):
     st.sidebar.download_button("💾 Guardar Informe", data=create_pdf(), file_name="SG_Informe_V2.5.pdf", mime="application/pdf")
+
