@@ -14,7 +14,7 @@ st.set_page_config(page_title="SG Consulting | Máquina de Verdad Financiera", l
 if 'lab_precios' not in st.session_state:
     st.session_state.lab_precios = []
 
-# ESTILOS CSS (DISEÑO VISUAL)
+# ESTILOS CSS (DISEÑO VISUAL RECUPERADO)
 st.markdown("""
     <style>
     /* Estilos Generales */
@@ -65,7 +65,6 @@ with st.sidebar:
     st.header("2. Alimentación de Datos")
     
     # --- VARIABLES GLOBALES INICIALES ---
-    # Valores por defecto para evitar errores si no se cargan datos
     ventas_mes = 0.0
     costo_ventas_mes = 0.0
     gasto_alquiler_mes = 0.0
@@ -75,7 +74,7 @@ with st.sidebar:
     intereses_mes = 0.0
     impuestos_mes = 0.0
     
-    df_historico = None # Variable para guardar la "Película"
+    df_historico = None 
 
     # --- LÓGICA MODO A: FLASH (INPUT MANUAL) ---
     if modo_operacion == "Modo A: Diagnóstico Flash (Foto)":
@@ -97,7 +96,6 @@ with st.sidebar:
     else:
         st.info("🎥 **Modo Estratega:** Analizamos la tendencia de 12 meses.")
         
-        # 1. Generador de Plantilla
         data_plantilla = {
             'Mes': ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'],
             'Ventas': [50000]*12, 'Costo_Ventas': [30000]*12,
@@ -109,7 +107,6 @@ with st.sidebar:
         
         st.download_button("⬇️ Descargar Plantilla Excel (CSV)", data=csv, file_name="plantilla_sg_consulting.csv", mime="text/csv")
         
-        # 2. Subidor de Archivo
         archivo_subido = st.file_uploader("Sube tu archivo (CSV) con 12 meses", type=['csv'])
         
         if archivo_subido is not None:
@@ -117,7 +114,7 @@ with st.sidebar:
                 df_historico = pd.read_csv(archivo_subido)
                 st.success("✅ Datos cargados exitosamente")
                 
-                # CÁLCULO DE PROMEDIOS PARA ALIMENTAR LA CASCADA (MÓDULOS ESTÁTICOS)
+                # CÁLCULO DE PROMEDIOS PARA ALIMENTAR LA CASCADA
                 ventas_mes = df_historico['Ventas'].mean()
                 costo_ventas_mes = df_historico['Costo_Ventas'].mean()
                 gasto_alquiler_mes = df_historico['Alquiler'].mean()
@@ -131,8 +128,7 @@ with st.sidebar:
                 st.error(f"Error leyendo el archivo: {e}")
                 st.stop()
         else:
-            st.warning("⚠️ Esperando archivo... (Se usarán datos demo mientras tanto)")
-            # Datos Demo para que no se vea vacío antes de cargar
+            st.warning("⚠️ Esperando archivo... (Se usarán datos demo)")
             ventas_mes = 50000.0
             costo_ventas_mes = 30000.0
             gasto_alquiler_mes = 5000.0
@@ -148,6 +144,9 @@ with st.sidebar:
         inventario = st.number_input("Inventario ($)", value=20000.0)
         cuentas_cobrar = st.number_input("Cuentas por Cobrar ($)", value=15000.0)
         cuentas_pagar = st.number_input("Cuentas por Pagar ($)", value=10000.0)
+    
+    # --- MULTIPLO PARA SIMULADOR GLOBAL ---
+    multiplo_global = st.number_input("Múltiplo EBITDA (Ref. Global)", value=3.0, step=0.5)
 
 # ==========================================
 # CÁLCULOS CENTRALES (BACKEND)
@@ -182,7 +181,10 @@ dias_proveedor = (cuentas_pagar / costo_ventas_mes) * 30 if costo_ventas_mes > 0
 ccc = dias_calle + dias_inventario - dias_proveedor
 dinero_atrapado_total = cuentas_cobrar + inventario
 
-# 5. Juez Digital
+# 5. Valoración Actual Base
+valor_empresa_actual_base = (ebitda_mes * 12) * multiplo_global
+
+# 6. Juez Digital
 veredicto_final = ""
 icono_veredicto = "⚖️"
 if ebitda_mes < 0:
@@ -202,33 +204,28 @@ else:
 # DASHBOARD VISUAL (TABS)
 # ==========================================
 
-# Veredicto Global
 st.markdown(f"""<div class="verdict-box"><h3>{icono_veredicto} Veredicto de la Estratega:</h3><p style="font-size: 18px;">"{veredicto_final}"</p></div>""", unsafe_allow_html=True)
 
-# DEFINICIÓN DE PESTAÑAS (AHORA SON 7 SI CONTAMOS MANDÍBULAS)
-tabs = st.tabs(["💎 Cascada", "🦈 Mandíbulas (Tendencia)", "🚦 Semáforo", "⚖️ Supervivencia", "🫁 Oxígeno", "🏆 Valoración V2.5", "🧪 Lab Precios"])
+# TABS PRINCIPALES
+tabs = st.tabs(["💎 Cascada", "🦈 Mandíbulas (Tendencia)", "🚦 Semáforo & Simulador", "⚖️ Supervivencia", "🫁 Oxígeno", "🏆 Valoración V2.5", "🧪 Lab Precios"])
 
 # --- TAB 1: CASCADA (DIAGNÓSTICO FOTO) ---
 with tabs[0]:
     col_main, col_chart = st.columns([1.2, 1])
     with col_main:
         st.subheader("Diagnóstico de Potencia (Foto Promedio)")
-        st.caption("Análisis capa por capa.")
         
-        # Nivel 1
         st.markdown('<div class="power-level-title">Nivel 1: Potencia Comercial (Bruta)</div>', unsafe_allow_html=True)
         st.markdown(f'<div class="power-value">${utilidad_bruta_mes:,.2f} (Margen: {margen_bruto:.1f}%)</div>', unsafe_allow_html=True)
         if margen_bruto > 30: st.markdown('<div class="check-box-success">✅ Modelo Saludable.</div>', unsafe_allow_html=True)
         else: st.markdown('<div class="check-box-warning">⚠️ Margen Bajo.</div>', unsafe_allow_html=True)
 
-        # Nivel 2
         st.markdown('<div class="power-level-title">Nivel 2: Potencia Operativa (EBITDA)</div>', unsafe_allow_html=True)
         st.markdown(f'<div class="power-value">${ebitda_mes:,.2f} (Margen: {margen_ebitda:.1f}%)</div>', unsafe_allow_html=True)
         if ebitda_mes > 0 and margen_ebitda > 10: st.markdown('<div class="check-box-success">✅ Corazón Fuerte.</div>', unsafe_allow_html=True)
         elif ebitda_mes > 0: st.markdown('<div class="check-box-warning">⚠️ Vulnerable.</div>', unsafe_allow_html=True)
         else: st.markdown('<div class="check-box-danger">🚨 Quema Efectivo.</div>', unsafe_allow_html=True)
 
-        # Nivel 3 y 4
         st.markdown('<div class="power-level-title">Nivel 3: Potencia Activos (EBIT)</div>', unsafe_allow_html=True)
         st.markdown(f'<div class="power-value">${ebit_mes:,.2f}</div>', unsafe_allow_html=True)
         st.markdown('<div class="power-level-title">Nivel 4: Potencia Patrimonial (Neta)</div>', unsafe_allow_html=True)
@@ -251,52 +248,99 @@ with tabs[0]:
 # --- TAB 2: LAS MANDÍBULAS (TENDENCIAS) ---
 with tabs[1]:
     st.subheader("🦈 Las Mandíbulas de la Muerte (Tendencias)")
-    
     if modo_operacion == "Modo A: Diagnóstico Flash (Foto)":
-        st.warning("⚠️ Esta función solo está disponible en 'Modo B: Estratega' cargando un Excel de 12 meses.")
-        st.image("https://via.placeholder.com/800x400.png?text=Gráfico+de+Tendencias+Solo+Disponible+en+Modo+Estratega", use_container_width=True)
-    
+        st.warning("⚠️ Disponible solo en 'Modo B: Estratega' (Carga Excel).")
     elif df_historico is not None:
-        # Preparar datos para el gráfico
         df_historico['Costos_Totales'] = df_historico['Costo_Ventas'] + df_historico['Alquiler'] + df_historico['Planilla'] + df_historico['Otros_Gastos']
-        
-        # Gráfico de Líneas (Jaws)
         fig_jaws = go.Figure()
         fig_jaws.add_trace(go.Scatter(x=df_historico['Mes'], y=df_historico['Ventas'], mode='lines+markers', name='Ventas (Azul)', line=dict(color='blue', width=3)))
-        fig_jaws.add_trace(go.Scatter(x=df_historico['Mes'], y=df_historico['Costos_Totales'], mode='lines+markers', name='Costos Totales (Rojo)', line=dict(color='red', width=3)))
-        
-        fig_jaws.update_layout(title="Análisis de Tendencia: ¿Las líneas se abren o se cruzan?", xaxis_title="Mes", yaxis_title="Dinero ($)", height=500)
+        fig_jaws.add_trace(go.Scatter(x=df_historico['Mes'], y=df_historico['Costos_Totales'], mode='lines+markers', name='Costos (Rojo)', line=dict(color='red', width=3)))
+        fig_jaws.update_layout(title="Tendencia: ¿Las líneas se abren o se cruzan?", height=500)
         st.plotly_chart(fig_jaws, use_container_width=True)
-        
-        # Diagnóstico Automático de Tendencia
-        tendencia_ventas = df_historico['Ventas'].iloc[-1] - df_historico['Ventas'].iloc[0]
-        tendencia_utilidad = (df_historico['Ventas'].iloc[-1] - df_historico['Costos_Totales'].iloc[-1]) - (df_historico['Ventas'].iloc[0] - df_historico['Costos_Totales'].iloc[0])
-        
-        c1, c2 = st.columns(2)
-        with c1:
-            if tendencia_ventas > 0: st.success("📈 Tus ventas están creciendo.")
-            else: st.error("📉 Tus ventas están cayendo.")
-        with c2:
-            if tendencia_utilidad < 0 and tendencia_ventas > 0:
-                st.error("🚨 ALERTA DE MANDÍBULA: Vendes más pero ganas menos. Ineficiencia Operativa (Desconomía de Escala).")
-            elif tendencia_utilidad > 0:
-                st.success("✅ Crecimiento Sano: Ganas más a medida que vendes más.")
-    else:
-        st.info("Carga un archivo en la barra lateral para ver el gráfico.")
+        st.info("Diagnóstico: Si la línea roja toca o cruza la azul, tienes Desconomía de Escala.")
 
-# --- TAB 3: SEMÁFORO ---
+# --- TAB 3: SEMÁFORO & SIMULADOR (RECUPERADO VISUALMENTE) ---
 with tabs[2]:
+    st.subheader("🚦 Semáforo de Eficiencia y Veredictos")
     col_renta, col_nomina = st.columns(2)
+
+    # --- INDICADOR DE ALQUILER (GAUGE) ---
     with col_renta:
-        st.metric("Ratio Alquiler", f"{ratio_alquiler:.1f}%")
-        st.progress(min(ratio_alquiler/30, 1.0))
-        if ratio_alquiler > 15: st.error("🚨 Local: Ancla Financiera")
-        else: st.success("✅ Local: Estructura OK")
+        color_renta = "green"
+        mensaje_renta = "✅ Estructura Óptima."
+        if ratio_alquiler >= 10 and ratio_alquiler <= 15:
+            color_renta = "orange"; mensaje_renta = "⚠️ Estructura Pesada."
+        elif ratio_alquiler > 15:
+            color_renta = "red"; mensaje_renta = "🚨 ALERTA CRÍTICA (Ancla)."
+
+        fig_gauge_renta = go.Figure(go.Indicator(
+            mode = "gauge+number", value = ratio_alquiler,
+            title = {'text': "Ratio Alquiler (%)"},
+            gauge = {
+                'axis': {'range': [None, 30]},
+                'bar': {'color': color_renta},
+                'steps': [{'range': [0, 10], 'color': "#e8f5e9"}, {'range': [10, 15], 'color': "#fff3e0"}, {'range': [15, 30], 'color': "#ffebee"}],
+                'threshold': {'line': {'color': "red", 'width': 4}, 'thickness': 0.75, 'value': 15}
+            }
+        ))
+        fig_gauge_renta.update_layout(height=250)
+        st.plotly_chart(fig_gauge_renta, use_container_width=True)
+        st.markdown(f'<div class="veredicto">{mensaje_renta}</div>', unsafe_allow_html=True)
+
+    # --- INDICADOR DE PLANILLA (GAUGE) ---
     with col_nomina:
-        st.metric("Ratio Planilla", f"{ratio_planilla:.1f}%")
-        st.progress(min(ratio_planilla/60, 1.0))
-        if ratio_planilla > 40: st.error("🚨 Planilla: Estructura Obesa")
-        else: st.success("✅ Planilla: Productiva")
+        color_nomina = "green"
+        mensaje_nomina = "✅ Productivo."
+        if ratio_planilla >= 30 and ratio_planilla <= 40:
+            color_nomina = "orange"; mensaje_nomina = "⚠️ Zona Vigilancia."
+        elif ratio_planilla > 40:
+            color_nomina = "red"; mensaje_nomina = "🚨 ALERTA OBESA."
+
+        fig_gauge_nomina = go.Figure(go.Indicator(
+            mode = "gauge+number", value = ratio_planilla,
+            title = {'text': "Eficiencia Planilla (%)"},
+            gauge = {
+                'axis': {'range': [None, 60]},
+                'bar': {'color': color_nomina},
+                'steps': [{'range': [0, 30], 'color': "#e8f5e9"}, {'range': [30, 40], 'color': "#fff3e0"}, {'range': [40, 60], 'color': "#ffebee"}],
+                'threshold': {'line': {'color': "red", 'width': 4}, 'thickness': 0.75, 'value': 40}
+            }
+        ))
+        fig_gauge_nomina.update_layout(height=250)
+        st.plotly_chart(fig_gauge_nomina, use_container_width=True)
+        st.markdown(f'<div class="veredicto">{mensaje_nomina}</div>', unsafe_allow_html=True)
+
+    # --- SIMULADOR DE RESCATE (RECUPERADO) ---
+    st.markdown("---")
+    st.subheader("🔮 Simulador de Rescate: 'La Palanca de Futuro'")
+    
+    col_sim_controls, col_sim_results = st.columns(2)
+
+    with col_sim_controls:
+        st.write("**Metas de Reducción:**")
+        meta_alquiler = st.slider("Reducir Alquiler en (%):", 0, 50, 0, step=5)
+        meta_planilla = st.slider("Optimizar Planilla en (%):", 0, 50, 0, step=5)
+
+    with col_sim_results:
+        # Cálculos de Simulación
+        ahorro_alquiler = gasto_alquiler_mes * (meta_alquiler/100)
+        ahorro_planilla = gasto_planilla_mes * (meta_planilla/100)
+        total_recuperado_mes = ahorro_alquiler + ahorro_planilla
+        
+        nuevo_ebitda = ebitda_mes + total_recuperado_mes
+        nuevo_valor_empresa = nuevo_ebitda * 12 * multiplo_global
+        plusvalia = nuevo_valor_empresa - valor_empresa_actual_base
+
+        st.markdown(f"""
+        <div class="metric-card">
+            <h4>Impacto Patrimonial</h4>
+            <p>Dinero Recuperado (Mes): <strong style="color:green">+${total_recuperado_mes:,.2f}</strong></p>
+            <p>Nuevo EBITDA Proyectado: <strong>${nuevo_ebitda:,.2f}</strong></p>
+            <hr>
+            <h3>Tu Empresa Valdría: <span style="color: #2e7d32">${nuevo_valor_empresa:,.2f}</span></h3>
+            <p>Ganancia de Valor (Plusvalía): <strong>+${plusvalia:,.2f}</strong></p>
+        </div>
+        """, unsafe_allow_html=True)
 
 # --- TAB 4: SUPERVIVENCIA ---
 with tabs[3]:
@@ -306,10 +350,10 @@ with tabs[3]:
         if margen_seguridad_mes > 0: st.success(f"✅ Margen Seguridad: ${margen_seguridad_mes:,.2f}")
         else: st.error(f"🚨 Faltan Ventas: ${abs(margen_seguridad_mes):,.2f}")
     with c2:
-        # Gráfico de P.E. Visual (Simplificado)
         pct_meta = (ventas_mes / punto_equilibrio_mes) * 100 if punto_equilibrio_mes > 0 else 0
-        st.markdown(f"**Estás al {pct_meta:.0f}% de tu meta de supervivencia.**")
-        st.progress(min(pct_meta/200, 1.0))
+        fig_safe = go.Figure(go.Indicator(mode="gauge+number", value=pct_meta, title={'text':"% Meta P.E."}, gauge={'axis':{'range':[0,200]}, 'bar':{'color':"green" if pct_meta>=100 else "red"}}))
+        fig_safe.update_layout(height=250)
+        st.plotly_chart(fig_safe, use_container_width=True)
 
 # --- TAB 5: OXÍGENO ---
 with tabs[4]:
@@ -324,9 +368,7 @@ with tabs[4]:
 # --- TAB 6: VALORACIÓN V2.5 (PATRIMONIO NETO) ---
 with tabs[5]:
     st.subheader("🏆 Motor de Riqueza: Valoración & Legado")
-    st.caption("Separamos el negocio del ladrillo para ver tu Patrimonio Real.")
-
-    # 1. Normalización (OpCo vs PropCo)
+    
     col_prop_1, col_prop_2 = st.columns(2)
     with col_prop_1:
         es_dueno = st.checkbox("¿Cliente es dueño del local?", value=False)
@@ -339,15 +381,13 @@ with tabs[5]:
             alquiler_virtual = st.number_input("Alquiler Virtual de Mercado ($)", value=2000.0)
             valor_edificio = st.number_input("Valor Comercial del Edificio ($)", value=250000.0)
     
-    # Cálculo EBITDA Ajustado
-    ebitda_ajustado = (ebitda_mes - alquiler_virtual) * 12 # Anualizado
+    ebitda_ajustado = (ebitda_mes - alquiler_virtual) * 12 
     
     st.markdown("---")
     
-    # 2. El Múltiplo
     col_val_1, col_val_2 = st.columns(2)
     with col_val_1:
-        multiplo = st.selectbox("Calidad del Negocio (Múltiplo)", [2, 3, 4, 5, 6], index=1, help="2x: Autoempleo, 5x: Gerencia Pro.")
+        multiplo = st.selectbox("Calidad del Negocio (Múltiplo)", [2, 3, 4, 5, 6], index=1)
         valor_operativo = ebitda_ajustado * multiplo
     with col_val_2:
         if valor_operativo > 0:
@@ -357,24 +397,16 @@ with tabs[5]:
             valor_operativo = 0
 
     st.markdown("---")
-
-    # 3. Patrimonio Neto
     st.subheader("💎 Tu Patrimonio Real (Net Worth)")
     deuda = st.number_input("Deuda Bancaria Total ($)", value=0.0)
     patrimonio = valor_operativo + valor_edificio - deuda
     
-    st.markdown(f"""
-    <div class="valuation-box">
-        <h1 style="color: #0d47a1; text-align: center;">${patrimonio:,.2f}</h1>
-        <p style="text-align: center;">(Negocio + Edificio - Deuda)</p>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown(f"""<div class="valuation-box"><h1 style="color: #0d47a1; text-align: center;">${patrimonio:,.2f}</h1><p style="text-align: center;">(Negocio + Edificio - Deuda)</p></div>""", unsafe_allow_html=True)
 
 # --- TAB 7: LAB DE PRECIOS V2.5 ---
 with tabs[6]:
     st.subheader("🧪 Lab de Precios (Bottom-Up)")
     
-    # 1. Costos Unitarios
     c1, c2 = st.columns(2)
     with c1:
         producto = st.text_input("Producto:", "Pastel Boda")
@@ -386,7 +418,6 @@ with tabs[6]:
         salario = st.number_input("Salario Mes", 600.0)
         mins = st.number_input("Minutos x Unidad", 60.0)
         mod = (salario / (192*60)) * mins
-        
         capacidad = st.number_input("Capacidad Mes (Unds)", 500)
         fijos_u = (gastos_operativos_mes / capacidad) if capacidad > 0 else 0
         
@@ -395,26 +426,17 @@ with tabs[6]:
     
     st.markdown("---")
     
-    # 2. Estrategia (Fórmula Inversa)
     c3, c4 = st.columns(2)
     with c3:
         margen = st.slider("Margen Deseado (%)", 10, 90, 30)
         comision = st.slider("Comisión Plataforma (%)", 0, 50, 0)
     with c4:
-        # FÓRMULA V2.5: Precio = Costo / (1 - (Margen + Comision))
         denom = 1 - ((margen + comision) / 100)
         if denom > 0:
             precio = costo_u / denom
             itbms = precio * 0.07
             final = precio + itbms
-            st.markdown(f"""
-            <div style="border: 2px solid green; padding: 10px; border-radius: 10px; text-align: center;">
-                <h3>Precio Sugerido: ${precio:,.2f}</h3>
-                <p>+ ITBMS: ${itbms:,.2f} | <strong>Ticket: ${final:,.2f}</strong></p>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            # Botón Guardar
+            st.markdown(f"""<div style="border: 2px solid green; padding: 10px; border-radius: 10px; text-align: center;"><h3>Precio Sugerido: ${precio:,.2f}</h3><p>+ ITBMS: ${itbms:,.2f} | <strong>Ticket: ${final:,.2f}</strong></p></div>""", unsafe_allow_html=True)
             if st.button("➕ Agregar a Tabla"):
                 st.session_state.lab_precios.append({
                     "Producto": producto, "Costo": f"${costo_u:,.2f}", "Precio": f"${precio:,.2f}", 
@@ -423,7 +445,6 @@ with tabs[6]:
         else:
             st.error("🚨 Imposible: Margen + Comisión > 100%")
 
-    # 3. Tabla
     if st.session_state.lab_precios:
         st.table(pd.DataFrame(st.session_state.lab_precios))
         if st.button("Limpiar"):
@@ -442,11 +463,9 @@ def create_pdf():
     
     pdf = PDF(); pdf.add_page(); pdf.set_font('Arial', '', 12)
     pdf.set_text_color(0)
-    
     pdf.cell(0, 10, f"Veredicto: {veredicto_final}", 0, 1)
     pdf.cell(0, 10, f"EBITDA Mes: ${ebitda_mes:,.2f}", 0, 1)
     pdf.cell(0, 10, f"Patrimonio Neto Est.: ${patrimonio if 'patrimonio' in locals() else 0:,.2f}", 0, 1)
-    
     return pdf.output(dest='S').encode('latin-1', 'replace')
 
 st.sidebar.markdown("---")
