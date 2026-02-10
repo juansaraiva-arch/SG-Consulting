@@ -432,15 +432,78 @@ with tabs[3]:
         st.plotly_chart(fig_be, use_container_width=True)
 
 # --- TAB 5: OXÍGENO ---
+# --- TAB 5: OXÍGENO & DINERO ATRAPADO (DISEÑO RESTAURADO) ---
 with tabs[4]:
-    c1, c2 = st.columns(2)
-    with c1:
-        st.metric("Ciclo de Caja (CCC)", f"{ccc:.0f} días")
-        if ccc > 0: st.warning("Tardas en recuperar tu dinero.")
-        else: st.success("Te financias con proveedores.")
-    with c2:
-        st.markdown(f"""<div class="money-trap"><h4>💸 Efectivo Atrapado</h4><p>Total: <strong>${dinero_atrapado_total:,.2f}</strong></p></div>""", unsafe_allow_html=True)
+    
+    col_kpi_cash, col_trap = st.columns([1, 1.2])
+    
+    # --- COLUMNA IZQUIERDA: MÉTRICAS CCC ---
+    with col_kpi_cash:
+        st.subheader("Ciclo de Conversión de Efectivo (CCC)")
+        st.caption("Ciclo de Caja (Días)")
+        
+        # Número Grande
+        st.markdown(f"<h1 style='font-size: 60px; margin: 0; color: #333;'>{ccc:.0f} días</h1>", unsafe_allow_html=True)
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        # Las 3 Columnas pequeñas
+        c1, c2, c3 = st.columns(3)
+        with c1: st.metric("Calle (Cobro)", f"{dias_calle:.0f}")
+        with c2: st.metric("Inv. (Venta)", f"{dias_inventario:.0f}")
+        with c3: st.metric("Prov. (Pago)", f"{dias_proveedor:.0f}")
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        # Mensaje de Diagnóstico (Caja de color)
+        if ccc > 0:
+            st.markdown(f"""
+            <div style="background-color: #fffde7; border-left: 5px solid #fbc02d; padding: 15px; border-radius: 5px;">
+                <p style="color: #f57f17; font-weight: bold; margin: 0;">⚠️ Tardas {ccc:.0f} días en recuperar tu dinero.</p>
+                <small style="color: #666;">Tu operación requiere financiamiento constante.</small>
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.markdown(f"""
+            <div style="background-color: #e8f5e9; border-left: 5px solid #2e7d32; padding: 15px; border-radius: 5px;">
+                <p style="color: #2e7d32; font-weight: bold; margin: 0;">✅ Ciclo Negativo: Te financias con proveedores.</p>
+            </div>
+            """, unsafe_allow_html=True)
 
+    # --- COLUMNA DERECHA: TARJETA DE DINERO ATRAPADO ---
+    with col_trap:
+        st.markdown("<br>", unsafe_allow_html=True) # Espacio para alinear
+        
+        # Tarjeta Principal (Gris con borde rojo)
+        st.markdown(f"""
+        <div style="background-color: #f5f5f5; padding: 25px; border-radius: 10px; border-left: 8px solid #c62828; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+            <h3 style="color: #424242; margin-top: 0;">💸 ¿Dónde está tu dinero? (Efectivo Atrapado)</h3>
+            <div style="margin-top: 20px; font-size: 16px;">
+                <p style="display: flex; justify-content: space-between;">
+                    <span>Dinero en la Calle (Clientes):</span>
+                    <strong>${cuentas_cobrar:,.2f}</strong>
+                </p>
+                <p style="display: flex; justify-content: space-between;">
+                    <span>Dinero en Bodega (Inventario):</span>
+                    <strong>${inventario:,.2f}</strong>
+                </p>
+            </div>
+            <hr style="border-top: 1px solid #bdbdbd; margin: 15px 0;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 18px; color: #616161;">Total Atrapado:</span>
+                <span style="font-size: 28px; font-weight: bold; color: #212121;">${dinero_atrapado_total:,.2f}</span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Caja Azul de Consejo (Consultor)
+        st.markdown(f"""
+        <div style="margin-top: 15px; background-color: #e3f2fd; border-left: 5px solid #1565c0; padding: 15px; border-radius: 5px;">
+            <p style="color: #0d47a1; font-size: 14px; margin: 0;">
+                ⚡ <strong>Consultor:</strong> 'No necesitas vender más para tener liquidez, necesitas liberar esos fondos atrapados mediante Factoring o Remates de inventario lento'.
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
 # --- TAB 6: VALORACIÓN V2.5 (PATRIMONIO NETO) ---
 with tabs[5]:
     st.subheader("🏆 Motor de Riqueza: Valoración & Legado")
@@ -547,4 +610,5 @@ def create_pdf():
 st.sidebar.markdown("---")
 if st.sidebar.button("📄 Descargar PDF"):
     st.sidebar.download_button("💾 Guardar Informe", data=create_pdf(), file_name="SG_Informe_V2.5.pdf", mime="application/pdf")
+
 
