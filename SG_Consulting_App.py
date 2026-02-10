@@ -343,95 +343,138 @@ with tabs[2]:
         """, unsafe_allow_html=True)
 
 # --- TAB 4: SUPERVIVENCIA (índice 3) ---
+# --- TAB 4: SUPERVIVENCIA (MAPA GRÁFICO MEJORADO) ---
 with tabs[3]:
-    st.subheader("⚖️ Línea de Supervivencia & Punto de Equilibrio")
-    
-    col_kpi, col_graph = st.columns([1, 2])
-    
-    with col_kpi:
-        # 1. KPI Numérico
-        st.metric("Punto de Equilibrio (Mes)", f"${punto_equilibrio_mes:,.2f}")
-        
-        # 2. Diagnóstico de Texto
-        if ventas_mes > punto_equilibrio_mes:
-            excedente = ventas_mes - punto_equilibrio_mes
-            st.success(f"✅ **ZONA DE UTILIDAD:** Superaste el umbral por ${excedente:,.2f}.")
-        elif ventas_mes == punto_equilibrio_mes:
-            st.warning("⚠️ **TABLAS:** Ni ganas ni pierdes.")
-        else:
-            faltante = punto_equilibrio_mes - ventas_mes
-            st.error(f"🚨 **ZONA DE PÉRDIDA:** Te faltan ${faltante:,.2f} para cubrir costos.")
+    st.subheader("⚖️ Mapa de Supervivencia: Zonas de Riesgo y Riqueza")
 
-        # 3. Medidor (Gauge) de Cobertura
-        pct_cubierto = (ventas_mes / punto_equilibrio_mes) * 100 if punto_equilibrio_mes > 0 else 0
+    # 1. PREPARACIÓN DE DATOS PARA GRÁFICO
+    # Recálculo de ratios para proyección gráfica
+    if ventas_mes > 0:
+        cv_ratio = costo_ventas_mes / ventas_mes
+    else:
+        cv_ratio = 0
+    
+    # Definir Rango de Proyección (Eje X)
+    # Proyectamos un 50% más allá del mayor valor entre Venta Actual y Punto de Equilibrio
+    max_x = max(ventas_mes, punto_equilibrio_mes) * 1.5
+    if max_x == 0: max_x = 1000  # Valor fallback para evitar gráficos vacíos
+
+    # Coordenadas Ejes Principales
+    eje_x = [0, max_x]
+    y_ventas = [0, max_x]
+    y_fijos = [costos_fijos_totales_mes, costos_fijos_totales_mes]
+    y_totales = [costos_fijos_totales_mes, costos_fijos_totales_mes + (max_x * cv_ratio)]
+
+    # 2. ESTRUCTURA DE COLUMNAS
+    col_kpi, col_graph = st.columns([1, 2.5])
+
+    with col_kpi:
+        # KPI Numérico Principal
+        st.metric("🎯 Punto de Equilibrio", f"${punto_equilibrio_mes:,.0f}")
+        st.metric("💵 Ventas Actuales", f"${ventas_mes:,.0f}")
+
+        # Análisis de Diferencia
+        diferencia = ventas_mes - punto_equilibrio_mes
         
-        fig_safe = go.Figure(go.Indicator(
-            mode="gauge+number", 
-            value=pct_cubierto, 
-            title={'text':"% Cubierto"}, 
-            gauge={'axis':{'range':[0, max(150, pct_cubierto)]}, 
-                   'bar':{'color':"green" if pct_cubierto>=100 else "red"},
-                   'steps': [{'range': [0, 100], 'color': "#ffebee"}, {'range': [100, 300], 'color': "#e8f5e9"}]}
-        ))
-        fig_safe.update_layout(height=280, margin=dict(l=20, r=20, t=50, b=20))
-        st.plotly_chart(fig_safe, use_container_width=True)
+        st.markdown("---")
+        if diferencia > 0:
+            st.success(f"🎉 **ZONA DE UTILIDAD**\n\nEstás **${diferencia:,.0f}** por encima de tu riesgo. Cada dólar extra ya es ganancia.")
+        elif diferencia == 0:
+            st.warning("⚠️ **TABLAS**\n\nNi ganas ni pierdes. Estás trabajando para cubrir costos.")
+        else:
+            st.error(f"🚨 **ZONA DE PÉRDIDA**\n\nTe faltan **${abs(diferencia):,.0f}** para dejar de perder dinero.")
+
+        # Medidor de Cobertura (Mini Gauge)
+        pct_cubierto = (ventas_mes / punto_equilibrio_mes * 100) if punto_equilibrio_mes > 0 else 0
+        st.write(f"**Cobertura de Costos: {pct_cubierto:.1f}%**")
+        st.progress(min(int(pct_cubierto), 100))
 
     with col_graph:
-        # --- GRÁFICO DE PUNTO DE EQUILIBRIO (MÉTODO GRÁFICO) ---
-        # Definimos el rango del gráfico (Eje X: Ventas)
-        max_x = max(ventas_mes, punto_equilibrio_mes) * 1.5
-        x_vals = [0, max_x] 
-        
-        # A. Línea de Costos Fijos (Horizontal constante)
-        y_fijos = [costos_fijos_totales_mes, costos_fijos_totales_mes]
-        
-        # B. Línea de Costo Total (Inicia en Fijos y sube según costos variables)
-        # Ratio de Costo Variable = Costo Ventas / Ventas
-        ratio_cv = (costo_ventas_mes / ventas_mes) if ventas_mes > 0 else 0
-        y_total = [costos_fijos_totales_mes, costos_fijos_totales_mes + (ratio_cv * max_x)]
-        
-        # C. Línea de Ventas (Inicia en 0 y sube 1:1)
-        y_ventas = [0, max_x]
-        
-        # Construcción del Gráfico
+        # 3. CONSTRUCCIÓN DEL GRÁFICO PRO
         fig_be = go.Figure()
-        
-        # Traza 1: Costos Fijos (Rojo Punteado)
-        fig_be.add_trace(go.Scatter(x=x_vals, y=y_fijos, mode='lines', name='Costos Fijos', 
-                                    line=dict(color='#ef5350', width=2, dash='dash')))
-        
-        # Traza 2: Costo Total (Naranja)
-        fig_be.add_trace(go.Scatter(x=x_vals, y=y_total, mode='lines', name='Costo Total', 
-                                    line=dict(color='#ffca28', width=3)))
-        
-        # Traza 3: Ventas / Ingresos (Azul Fuerte)
-        fig_be.add_trace(go.Scatter(x=x_vals, y=y_ventas, mode='lines', name='Ventas (Ingresos)', 
-                                    line=dict(color='#1565c0', width=4)))
-        
-        # Traza 4: El Punto de Equilibrio (Marcador)
+
+        # A. ZONA DE PÉRDIDA (Triángulo Rojo Sombreado)
+        # Se forma entre el Costo Total (Arriba) y las Ventas (Abajo) hasta el PE
+        if punto_equilibrio_mes > 0:
+            fig_be.add_trace(go.Scatter(
+                x=[0, punto_equilibrio_mes, punto_equilibrio_mes, 0],
+                y=[costos_fijos_totales_mes, punto_equilibrio_mes, 0, 0],
+                fill='toself', mode='none', name='Zona de Pérdida',
+                fillcolor='rgba(239, 83, 80, 0.15)', # Rojo suave
+                hoverinfo='skip'
+            ))
+
+            # B. ZONA DE GANANCIA (Triángulo Verde Sombreado)
+            # Se abre desde el PE hacia la derecha, entre Ventas (Arriba) y Costo Total (Abajo)
+            y_fin_ventas = max_x
+            y_fin_costos = costos_fijos_totales_mes + (max_x * cv_ratio)
+            
+            fig_be.add_trace(go.Scatter(
+                x=[punto_equilibrio_mes, max_x, max_x, punto_equilibrio_mes],
+                y=[punto_equilibrio_mes, y_fin_ventas, y_fin_costos, punto_equilibrio_mes],
+                fill='toself', mode='none', name='Zona de Utilidad',
+                fillcolor='rgba(102, 187, 106, 0.15)', # Verde suave
+                hoverinfo='skip'
+            ))
+
+        # C. LÍNEAS DE ESTRUCTURA
+        # Costos Fijos
         fig_be.add_trace(go.Scatter(
-            x=[punto_equilibrio_mes], y=[punto_equilibrio_mes],
-            mode='markers', name='Punto de Equilibrio',
-            marker=dict(size=12, color='black', symbol='circle-open', line=dict(width=2))
+            x=eje_x, y=y_fijos, mode='lines', name='Costos Fijos',
+            line=dict(color='firebrick', width=2, dash='dash'),
+            hovertemplate='Fijos: $%{y:,.0f}<extra></extra>'
         ))
 
-        # Etiquetas de Zona (Texto sobre el gráfico)
-        fig_be.add_annotation(x=max_x*0.1, y=costos_fijos_totales_mes*0.8, text="ZONA PÉRDIDA", showarrow=False, font=dict(color="red", size=10))
-        fig_be.add_annotation(x=max_x*0.9, y=max_x*0.95, text="ZONA UTILIDAD", showarrow=False, font=dict(color="green", size=10))
+        # Costos Totales
+        fig_be.add_trace(go.Scatter(
+            x=eje_x, y=y_totales, mode='lines', name='Costo Total',
+            line=dict(color='orange', width=3),
+            hovertemplate='Total: $%{y:,.0f}<extra></extra>'
+        ))
 
-        # Configuración Final
+        # Ventas (Ingresos)
+        fig_be.add_trace(go.Scatter(
+            x=eje_x, y=y_ventas, mode='lines', name='Ventas',
+            line=dict(color='royalblue', width=4),
+            hovertemplate='Ventas: $%{y:,.0f}<extra></extra>'
+        ))
+
+        # D. MARCADORES DE POSICIÓN
+        # 1. El Punto de Equilibrio
+        if punto_equilibrio_mes > 0:
+            fig_be.add_trace(go.Scatter(
+                x=[punto_equilibrio_mes], y=[punto_equilibrio_mes],
+                mode='markers', name='Punto de Equilibrio',
+                marker=dict(size=12, color='white', symbol='circle', line=dict(color='black', width=2)),
+                hovertemplate='Equilibrio: $%{x:,.0f}<extra></extra>'
+            ))
+            # Etiqueta de texto fija
+            fig_be.add_annotation(
+                x=punto_equilibrio_mes, y=punto_equilibrio_mes,
+                text="📍 PE", showarrow=True, arrowhead=1, ax=0, ay=-30
+            )
+
+        # 2. Tu Realidad Hoy (Dinámico)
+        color_status = 'green' if ventas_mes >= punto_equilibrio_mes else 'red'
+        fig_be.add_trace(go.Scatter(
+            x=[ventas_mes], y=[ventas_mes],
+            mode='markers', name='Tu Realidad Hoy',
+            marker=dict(size=15, color=color_status, symbol='diamond'),
+            hovertemplate='Tú estás aquí: $%{x:,.0f}<extra></extra>'
+        ))
+
+        # E. CONFIGURACIÓN FINAL DEL LAYOUT
         fig_be.update_layout(
-            title="Gráfico de Equilibrio: ¿Dónde cruzas la línea?",
+            title="Mapa de Cruce: Costos vs. Ingresos",
             xaxis_title="Volumen de Ventas ($)",
             yaxis_title="Dinero ($)",
-            hovermode="x unified",
-            height=450,
-            legend=dict(orientation="h", y=1.1)
+            height=500,
+            template="plotly_white",
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
         )
-        
-        st.plotly_chart(fig_be, use_container_width=True)
 
-# --- TAB 5: OXÍGENO ---
+        st.plotly_chart(fig_be, use_container_width=True)
+        
 # --- TAB 5: OXÍGENO & DINERO ATRAPADO (DISEÑO RESTAURADO) ---
 with tabs[4]:
     
@@ -610,5 +653,6 @@ def create_pdf():
 st.sidebar.markdown("---")
 if st.sidebar.button("📄 Descargar PDF"):
     st.sidebar.download_button("💾 Guardar Informe", data=create_pdf(), file_name="SG_Informe_V2.5.pdf", mime="application/pdf")
+
 
 
