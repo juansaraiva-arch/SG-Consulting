@@ -1,12 +1,15 @@
 import streamlit as st
 import plotly.graph_objects as go
-import pandas as pd
+import pandas as pdst.tabs
 from fpdf import FPDF
 from datetime import datetime
 
 # CONFIGURACIÓN DE LA PÁGINA
 st.set_page_config(page_title="SG Strategic Dashboard", layout="wide", initial_sidebar_state="expanded")
-
+# --- INICIALIZACIÓN DE MEMORIA (SESSION STATE) ---
+if 'lab_precios' not in st.session_state:
+    st.session_state.lab_precios = []
+    
 # --- ESTILOS VISUALES ---
 st.markdown("""
     <style>
@@ -178,7 +181,7 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # TABS PRINCIPALES
-tab1, tab2, tab3, tab4 = st.tabs(["💎 Cascada & Valoración", "🚦 Semáforo & Simulador", "⚖️ Supervivencia", "🫁 Oxígeno & Dinero Atrapado"])
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["💎 Cascada", "🚦 Semáforo", "⚖️ Supervivencia", "🫁 Oxígeno", "📈 Valoración", "🧪 Lab de Precios"])
 
 # MÓDULO 1: CASCADA DE POTENCIA + VALORACIÓN (ACTUALIZADO)
 # --- REEMPLAZA TODO EL BLOQUE 'with tab1:' CON ESTO ---
@@ -396,6 +399,145 @@ with tab4:
             st.info("💡 **Consultor:** 'No necesitas vender más para tener liquidez, necesitas liberar esos fondos atrapados mediante Factoring o Remates'.")
 
 # ==========================================
+# TAB 6: LABORATORIO DE PRECIOS (INGENIERÍA DE MENÚ)
+# ==========================================
+with tab6:
+    st.subheader("🧪 Laboratorio de Ingeniería de Precios")
+    st.caption("Calculadora 'Bottom-Up': Define tus costos unitarios para encontrar el precio de venta real.")
+
+    # --- BLOQUE 1: CALCULADORA DE COSTOS (INPUTS) ---
+    col_lab_inputs, col_lab_strategy = st.columns([1, 1.2])
+    
+    with col_lab_inputs:
+        st.markdown("### 1. Estructura de Costos (Unitario)")
+        nombre_producto = st.text_input("Nombre del Producto / Servicio:", placeholder="Ej. Hamburguesa Especial")
+        
+        # A. MATERIALES (Directos)
+        st.markdown("**A. Materiales e Insumos**")
+        st.info("Lista los ingredientes y su costo *por la porción usada*.")
+        
+        # Data Editor simple para ingredientes
+        df_materiales_default = pd.DataFrame([
+            {"Ingrediente": "Insumo Principal", "Costo ($)": 0.00},
+            {"Ingrediente": "Insumo Secundario", "Costo ($)": 0.00},
+            {"Ingrediente": "Empaque/Otros", "Costo ($)": 0.00}
+        ])
+        edited_df = st.data_editor(df_materiales_default, num_rows="dynamic", use_container_width=True)
+        costo_materiales = edited_df["Costo ($)"].sum()
+        st.write(f"💰 *Costo Materiales: ${costo_materiales:,.2f}*")
+
+        # B. MANO DE OBRA DIRECTA (MOD)
+        st.markdown("**B. Mano de Obra Directa (MOD)**")
+        with st.expander("Calcular MOD Unitario"):
+            salario_operario = st.number_input("Salario Mensual Operario ($)", value=600.0, step=50.0)
+            horas_mes = st.number_input("Horas Laborales al Mes", value=192, help="Normalmente 48h semanales x 4 semanas")
+            minutos_por_unidad = st.number_input("Minutos para producir 1 unidad", value=15, step=5)
+            
+            costo_minuto = salario_operario / (horas_mes * 60)
+            costo_mod_unitario = costo_minuto * minutos_por_unidad
+            st.write(f"⏱️ Costo por Minuto: ${costo_minuto:.3f}")
+        st.write(f"👷 *Costo MOD: ${costo_mod_unitario:,.2f}*")
+
+        # C. INDIRECTOS Y FIJOS (Capacidad)
+        st.markdown("**C. Asignación de Costos Fijos**")
+        gastos_fijos_ref = gastos_operativos_mes if 'gastos_operativos_mes' in locals() else 5000.0
+        
+        capacidad_mensual = st.number_input("Capacidad de Producción Mensual (Unidades)", value=1000, help="¿Cuántas unidades puedes vender al mes con tu estructura actual?")
+        costo_fijo_unitario = gastos_fijos_ref / capacidad_mensual if capacidad_mensual > 0 else 0
+        
+        st.write(f"🏭 *Costo Fijo Asignado (Absorción): ${costo_fijo_unitario:,.2f}*")
+        
+        # COSTO TOTAL UNITARIO
+        costo_total_unitario = costo_materiales + costo_mod_unitario + costo_fijo_unitario
+        st.markdown("---")
+        st.metric("COSTO TOTAL UNITARIO", f"${costo_total_unitario:,.2f}", help="Suma de Materiales + Mano de Obra + Carga Fabril Unitaria")
+
+    # --- BLOQUE 2: ESTRATEGIA DE PRECIO ---
+    with col_lab_strategy:
+        st.markdown("### 2. Definición de Precio y Margen")
+        
+        # A. FUGAS (Comisiones)
+        comision_plataforma_pct = st.slider("Comisión Plataforma/Tarjeta (%)", 0, 40, 5, help="UberEats, PedidosYa, Tarjeta de Crédito (Sobre Precio Final)")
+        
+        # B. MARGEN DESEADO
+        margen_deseado_pct = st.select_slider(
+            "Margen de Ganancia Real Deseado (%)",
+            options=[10, 15, 20, 25, 30, 35, 40, 50, 60],
+            value=30
+        )
+        
+        # C. FÓRMULA MAESTRA (Backend)
+        # Precio = Costo / (1 - (Margen% + Comision%))
+        denominador = 1 - ((margen_deseado_pct + comision_plataforma_pct) / 100)
+        
+        if denominador <= 0:
+            st.error("🚨 ERROR MATEMÁTICO: La suma de Margen + Comisión supera el 100%. Es imposible poner precio.")
+            precio_sugerido = 0
+        else:
+            precio_sugerido = costo_total_unitario / denominador
+        
+        # ITBMS
+        impuesto_pct = 0.07 # 7% ITBMS Panamá
+        precio_con_impuesto = precio_sugerido * (1 + impuesto_pct)
+        
+        # D. VISUALIZACIÓN DEL TICKET
+        st.markdown(f"""
+        <div style="background-color: #f1f8e9; padding: 20px; border-radius: 10px; border: 2px solid #33691e; text-align: center;">
+            <p style="margin:0;">Precio Sugerido (Antes de Impuestos)</p>
+            <h1 style="color: #33691e; margin:0;">${precio_sugerido:,.2f}</h1>
+            <hr>
+            <p style="font-size: 14px;">
+            + ITBMS (7%): ${precio_sugerido*impuesto_pct:,.2f}<br>
+            <strong>PRECIO FINAL EN ETIQUETA: ${precio_con_impuesto:,.2f}</strong>
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # DESGLOSE DE DINERO
+        ganancia_neta_unitaria = precio_sugerido * (margen_deseado_pct/100)
+        pago_comisiones = precio_sugerido * (comision_plataforma_pct/100)
+        
+        with st.expander("Ver Desglose del Dinero (¿Quién se lleva qué?)"):
+            st.write(f"💵 **Ingreso Neto:** ${precio_sugerido:,.2f}")
+            st.write(f"🔴 **Menos Costo:** -${costo_total_unitario:,.2f}")
+            st.write(f"💳 **Menos Comisión:** -${pago_comisiones:,.2f}")
+            st.write(f"🟢 **Ganancia Real:** ${ganancia_neta_unitaria:,.2f}")
+
+    # --- BLOQUE 3: MATRIZ COMPARATIVA (SESSION STATE) ---
+    st.markdown("---")
+    st.markdown("### 3. Matriz de Comparación de Productos")
+    
+    col_btn_add, col_btn_clear = st.columns([1, 4])
+    
+    with col_btn_add:
+        if st.button("➕ Agregar a Tabla"):
+            if nombre_producto and precio_sugerido > 0:
+                # Agregar a la lista en memoria
+                st.session_state.lab_precios.append({
+                    "Producto": nombre_producto,
+                    "Costo Unit.": f"${costo_total_unitario:,.2f}",
+                    "Precio Venta": f"${precio_sugerido:,.2f}",
+                    "Margen %": f"{margen_deseado_pct}%",
+                    "Ganancia $": f"${ganancia_neta_unitaria:,.2f}",
+                    "Comisión Plat.": f"{comision_plataforma_pct}%"
+                })
+                st.success("Agregado")
+            else:
+                st.warning("Calcula un precio válido primero.")
+
+    with col_btn_clear:
+        if st.button("🗑️ Limpiar Tabla"):
+            st.session_state.lab_precios = []
+            st.experimental_rerun()
+
+    # Mostrar Tabla si hay datos
+    if len(st.session_state.lab_precios) > 0:
+        df_comparativo = pd.DataFrame(st.session_state.lab_precios)
+        st.table(df_comparativo)
+    else:
+        st.info("La tabla está vacía. Agrega productos arriba para comparar.")
+
+# ==========================================
 # GENERADOR DE REPORTE PROFESIONAL (PDF)
 # ==========================================
 
@@ -576,5 +718,6 @@ if st.sidebar.button("📄 Generar Informe Consultivo"):
         file_name=f"Informe_Estrategico_SG_{datetime.now().strftime('%Y%m%d')}.pdf",
         mime="application/pdf"
     )
+
 
 
