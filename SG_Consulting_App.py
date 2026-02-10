@@ -343,134 +343,135 @@ with tabs[2]:
         """, unsafe_allow_html=True)
 
 # --- TAB 4: SUPERVIVENCIA (índice 3) ---
-# --- TAB 4: SUPERVIVENCIA (MAPA GRÁFICO MEJORADO) ---
+# --- TAB 4: SUPERVIVENCIA (MAPA GRÁFICO CON META) ---
 with tabs[3]:
-    st.subheader("⚖️ Mapa de Supervivencia: Zonas de Riesgo y Riqueza")
+    st.subheader("⚖️ Mapa de Supervivencia & Metas")
 
-    # 1. PREPARACIÓN DE DATOS PARA GRÁFICO
-    # Recálculo de ratios para proyección gráfica
+    # 1. PREPARACIÓN DE DATOS
+    # Recálculo de ratios
     if ventas_mes > 0:
         cv_ratio = costo_ventas_mes / ventas_mes
+        mc_ratio = 1 - cv_ratio # Margen de Contribución %
     else:
         cv_ratio = 0
-    
-    # Definir Rango de Proyección (Eje X)
-    # Proyectamos un 50% más allá del mayor valor entre Venta Actual y Punto de Equilibrio
-    max_x = max(ventas_mes, punto_equilibrio_mes) * 1.5
-    if max_x == 0: max_x = 1000  # Valor fallback para evitar gráficos vacíos
-
-    # Coordenadas Ejes Principales
-    eje_x = [0, max_x]
-    y_ventas = [0, max_x]
-    y_fijos = [costos_fijos_totales_mes, costos_fijos_totales_mes]
-    y_totales = [costos_fijos_totales_mes, costos_fijos_totales_mes + (max_x * cv_ratio)]
+        mc_ratio = 0
 
     # 2. ESTRUCTURA DE COLUMNAS
     col_kpi, col_graph = st.columns([1, 2.5])
 
     with col_kpi:
-        # KPI Numérico Principal
-        st.metric("🎯 Punto de Equilibrio", f"${punto_equilibrio_mes:,.0f}")
-        st.metric("💵 Ventas Actuales", f"${ventas_mes:,.0f}")
-
-        # Análisis de Diferencia
-        diferencia = ventas_mes - punto_equilibrio_mes
+        # --- INPUT DE META (NUEVO) ---
+        st.markdown("### 🎯 Define tu Objetivo")
+        ganancia_deseada = st.number_input("¿Cuánto quieres ganar al mes? ($)", value=0.0, step=500.0)
         
-        st.markdown("---")
-        if diferencia > 0:
-            st.success(f"🎉 **ZONA DE UTILIDAD**\n\nEstás **${diferencia:,.0f}** por encima de tu riesgo. Cada dólar extra ya es ganancia.")
-        elif diferencia == 0:
-            st.warning("⚠️ **TABLAS**\n\nNi ganas ni pierdes. Estás trabajando para cubrir costos.")
+        # CÁLCULO DE VENTA NECESARIA
+        # Fórmula: (Fijos + Ganancia) / Margen Contribución
+        if mc_ratio > 0:
+            ventas_meta = (costos_fijos_totales_mes + ganancia_deseada) / mc_ratio
         else:
-            st.error(f"🚨 **ZONA DE PÉRDIDA**\n\nTe faltan **${abs(diferencia):,.0f}** para dejar de perder dinero.")
+            ventas_meta = 0
 
-        # Medidor de Cobertura (Mini Gauge)
-        pct_cubierto = (ventas_mes / punto_equilibrio_mes * 100) if punto_equilibrio_mes > 0 else 0
-        st.write(f"**Cobertura de Costos: {pct_cubierto:.1f}%**")
-        st.progress(min(int(pct_cubierto), 100))
+        st.markdown("---")
+        
+        # KPI Numérico Principal
+        st.metric("🧱 Punto de Equilibrio (Min)", f"${punto_equilibrio_mes:,.0f}")
+        
+        if ganancia_deseada > 0:
+            st.metric("🏆 Venta para tu Meta", f"${ventas_meta:,.0f}", delta=f"${ventas_meta - ventas_mes:,.0f} vs Actual", delta_color="normal")
+        else:
+            st.metric("💵 Ventas Actuales", f"${ventas_mes:,.0f}")
+
+        # Análisis de Estado Actual
+        diferencia = ventas_mes - punto_equilibrio_mes
+        if diferencia > 0:
+            st.success(f"Estás en **ZONA DE UTILIDAD** (+${diferencia:,.0f}).")
+        elif diferencia == 0:
+            st.warning("Estás en **TABLAS**.")
+        else:
+            st.error(f"Estás en **ZONA DE PÉRDIDA** (-${abs(diferencia):,.0f}).")
 
     with col_graph:
-        # 3. CONSTRUCCIÓN DEL GRÁFICO PRO
+        # 3. LÓGICA DEL GRÁFICO
+        # Definir Rango de Proyección (Eje X) para incluir la Meta
+        max_x = max(ventas_mes, punto_equilibrio_mes, ventas_meta) * 1.25
+        if max_x == 0: max_x = 1000
+
+        # Coordenadas
+        eje_x = [0, max_x]
+        y_ventas = [0, max_x]
+        y_fijos = [costos_fijos_totales_mes, costos_fijos_totales_mes]
+        y_totales = [costos_fijos_totales_mes, costos_fijos_totales_mes + (max_x * cv_ratio)]
+
         fig_be = go.Figure()
 
-        # A. ZONA DE PÉRDIDA (Triángulo Rojo Sombreado)
-        # Se forma entre el Costo Total (Arriba) y las Ventas (Abajo) hasta el PE
+        # A. ZONAS DE SOMBRA (Pérdida/Ganancia)
         if punto_equilibrio_mes > 0:
+            # Zona Roja
             fig_be.add_trace(go.Scatter(
                 x=[0, punto_equilibrio_mes, punto_equilibrio_mes, 0],
                 y=[costos_fijos_totales_mes, punto_equilibrio_mes, 0, 0],
-                fill='toself', mode='none', name='Zona de Pérdida',
-                fillcolor='rgba(239, 83, 80, 0.15)', # Rojo suave
-                hoverinfo='skip'
+                fill='toself', mode='none', name='Zona Pérdida',
+                fillcolor='rgba(239, 83, 80, 0.1)', hoverinfo='skip'
             ))
-
-            # B. ZONA DE GANANCIA (Triángulo Verde Sombreado)
-            # Se abre desde el PE hacia la derecha, entre Ventas (Arriba) y Costo Total (Abajo)
+            # Zona Verde
             y_fin_ventas = max_x
             y_fin_costos = costos_fijos_totales_mes + (max_x * cv_ratio)
-            
             fig_be.add_trace(go.Scatter(
                 x=[punto_equilibrio_mes, max_x, max_x, punto_equilibrio_mes],
                 y=[punto_equilibrio_mes, y_fin_ventas, y_fin_costos, punto_equilibrio_mes],
-                fill='toself', mode='none', name='Zona de Utilidad',
-                fillcolor='rgba(102, 187, 106, 0.15)', # Verde suave
-                hoverinfo='skip'
+                fill='toself', mode='none', name='Zona Ganancia',
+                fillcolor='rgba(102, 187, 106, 0.1)', hoverinfo='skip'
             ))
 
-        # C. LÍNEAS DE ESTRUCTURA
-        # Costos Fijos
-        fig_be.add_trace(go.Scatter(
-            x=eje_x, y=y_fijos, mode='lines', name='Costos Fijos',
-            line=dict(color='firebrick', width=2, dash='dash'),
-            hovertemplate='Fijos: $%{y:,.0f}<extra></extra>'
-        ))
+        # B. LÍNEAS ESTRUCTURALES
+        fig_be.add_trace(go.Scatter(x=eje_x, y=y_fijos, mode='lines', name='Costos Fijos', line=dict(color='firebrick', width=2, dash='dash')))
+        fig_be.add_trace(go.Scatter(x=eje_x, y=y_totales, mode='lines', name='Costo Total', line=dict(color='orange', width=3)))
+        fig_be.add_trace(go.Scatter(x=eje_x, y=y_ventas, mode='lines', name='Ventas', line=dict(color='royalblue', width=4)))
 
-        # Costos Totales
-        fig_be.add_trace(go.Scatter(
-            x=eje_x, y=y_totales, mode='lines', name='Costo Total',
-            line=dict(color='orange', width=3),
-            hovertemplate='Total: $%{y:,.0f}<extra></extra>'
-        ))
-
-        # Ventas (Ingresos)
-        fig_be.add_trace(go.Scatter(
-            x=eje_x, y=y_ventas, mode='lines', name='Ventas',
-            line=dict(color='royalblue', width=4),
-            hovertemplate='Ventas: $%{y:,.0f}<extra></extra>'
-        ))
-
-        # D. MARCADORES DE POSICIÓN
-        # 1. El Punto de Equilibrio
+        # C. MARCADORES
+        # 1. Punto de Equilibrio
         if punto_equilibrio_mes > 0:
             fig_be.add_trace(go.Scatter(
                 x=[punto_equilibrio_mes], y=[punto_equilibrio_mes],
                 mode='markers', name='Punto de Equilibrio',
-                marker=dict(size=12, color='white', symbol='circle', line=dict(color='black', width=2)),
-                hovertemplate='Equilibrio: $%{x:,.0f}<extra></extra>'
+                marker=dict(size=10, color='white', line=dict(color='black', width=2))
             ))
-            # Etiqueta de texto fija
-            fig_be.add_annotation(
-                x=punto_equilibrio_mes, y=punto_equilibrio_mes,
-                text="📍 PE", showarrow=True, arrowhead=1, ax=0, ay=-30
-            )
 
-        # 2. Tu Realidad Hoy (Dinámico)
-        color_status = 'green' if ventas_mes >= punto_equilibrio_mes else 'red'
+        # 2. Realidad Actual
         fig_be.add_trace(go.Scatter(
             x=[ventas_mes], y=[ventas_mes],
-            mode='markers', name='Tu Realidad Hoy',
-            marker=dict(size=15, color=color_status, symbol='diamond'),
-            hovertemplate='Tú estás aquí: $%{x:,.0f}<extra></extra>'
+            mode='markers', name='Tu Realidad',
+            marker=dict(size=15, color='green' if ventas_mes >= punto_equilibrio_mes else 'red', symbol='diamond'),
+            hovertemplate='Hoy: $%{x:,.0f}<extra></extra>'
         ))
 
-        # E. CONFIGURACIÓN FINAL DEL LAYOUT
+        # D. LÍNEA DE META (NUEVO FEATURE)
+        if ganancia_deseada > 0 and ventas_meta > 0:
+            # Línea Vertical
+            fig_be.add_vline(x=ventas_meta, line_width=2, line_dash="dot", line_color="purple")
+            
+            # Marcador de Meta
+            fig_be.add_trace(go.Scatter(
+                x=[ventas_meta], y=[ventas_meta],
+                mode='markers+text', name='META DESEADA',
+                text=["🏆"], textposition="top center",
+                marker=dict(size=15, color='purple', symbol='star'),
+                hovertemplate='Meta: $%{x:,.0f}<br>Ganancia: $' + f'{ganancia_deseada:,.0f}<extra></extra>'
+            ))
+            
+            # Anotación
+            fig_be.add_annotation(
+                x=ventas_meta, y=0,
+                text=f"Meta: ${ventas_meta:,.0f}",
+                showarrow=False, yshift=10, font=dict(color="purple")
+            )
+
+        # Configuración Final
         fig_be.update_layout(
-            title="Mapa de Cruce: Costos vs. Ingresos",
-            xaxis_title="Volumen de Ventas ($)",
-            yaxis_title="Dinero ($)",
-            height=500,
-            template="plotly_white",
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+            title="Mapa de Navegación Financiera",
+            xaxis_title="Ventas ($)", yaxis_title="Dinero ($)",
+            height=500, template="plotly_white",
+            legend=dict(orientation="h", y=1.1)
         )
 
         st.plotly_chart(fig_be, use_container_width=True)
@@ -653,6 +654,7 @@ def create_pdf():
 st.sidebar.markdown("---")
 if st.sidebar.button("📄 Descargar PDF"):
     st.sidebar.download_button("💾 Guardar Informe", data=create_pdf(), file_name="SG_Informe_V2.5.pdf", mime="application/pdf")
+
 
 
 
