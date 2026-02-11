@@ -429,57 +429,84 @@ with tabs[1]:
         """)
 
 
-# --- D. PRUEBA ÁCIDA: LÓGICA PERSONALIZADA (MONITOR DE OXÍGENO) ---
-    # 1. La Fórmula
-    pasivo_circulante = cuentas_pagar + deuda_bancaria # Asumimos deuda total corto plazo
+# --- TAB 3: SEMÁFORO DE RIESGOS & PLAN DE CHOQUE (VERSIÓN FINAL INTEGRADA) ---
+with tabs[2]:
+    st.subheader("🚦 Panel de Control de Riesgos (KPIs Críticos)")
+    
+    # 1. CÁLCULO DE RATIOS GENERALES
+    # A. Alquiler
+    ratio_alquiler = (gasto_alquiler_mes / ventas_mes) * 100 if ventas_mes > 0 else 0
+    # B. Planilla (Sobre Utilidad Bruta)
+    ratio_planilla_ub = (gasto_planilla_mes / utilidad_bruta_mes) * 100 if utilidad_bruta_mes > 0 else 0
+    # C. Cobertura Bancaria
+    if intereses_mes > 0:
+        cobertura_bancaria = ebitda_mes / intereses_mes
+    else:
+        cobertura_bancaria = 10.0
+        
+    # D. PRUEBA ÁCIDA (MONITOR DE OXÍGENO) - Lógica Nueva
+    pasivo_circulante = cuentas_pagar + deuda_bancaria # Asumimos toda la deuda como CP para estrés
     if pasivo_circulante > 0:
         prueba_acida = (caja + cuentas_cobrar) / pasivo_circulante
     else:
         prueba_acida = 0
 
-    # 2. Los Rangos de Alerta (Semáforo de Soraya)
-    color_bg_acida = ""
-    icono_estado_acida = ""
-    mensaje_veredicto_acida = ""
+    # Lógica del Semáforo de Oxígeno
     activar_rescate = False
-
     if prueba_acida < 1.0:
-        # 🔴 Rojo - Asfixia
-        color_bg_acida = "#ffebee" # Fondo Rojo Suave
-        icono_estado_acida = "🔴 Estado de Asfixia"
-        mensaje_veredicto_acida = "¡Alerta Roja! No tienes suficiente efectivo para cubrir tus deudas hoy. Estás operando en riesgo de insolvencia."
+        color_bg_acida = "#ffebee" # Rojo
+        icono_acida = "🔴 Asfixia"
+        msj_acida = "¡Alerta Roja! No cubres tus deudas hoy."
         activar_rescate = True
-        
     elif 1.0 <= prueba_acida < 1.5:
-        # 🟡 Naranja - Vigilancia
-        color_bg_acida = "#fff3e0" # Fondo Naranja Suave
-        icono_estado_acida = "🟡 Zona de Vigilancia"
-        mensaje_veredicto_acida = "Estás en el límite. Tienes lo justo para cumplir. Cualquier retraso en un cobro pondrá en riesgo tu operación."
-        
+        color_bg_acida = "#fff3e0" # Naranja
+        icono_acida = "🟡 Vigilancia"
+        msj_acida = "Estás al límite. Cuidado con retrasos."
     else:
-        # 🟢 Verde - Saludable
-        color_bg_acida = "#e8f5e9" # Fondo Verde Suave
-        icono_estado_acida = "🟢 Oxígeno Saludable"
-        mensaje_veredicto_acida = "Excelente. Tienes suficiente dinero para cubrir tus compromisos. Este oxígeno te da tiempo para decisiones estratégicas."
+        color_bg_acida = "#e8f5e9" # Verde
+        icono_acida = "🟢 Oxígeno"
+        msj_acida = "Tienes liquidez para maniobrar."
 
-    # 3. Visualización (Tarjeta Especial)
-    # Nota: Si ya tienes las columnas c1, c2, c3, c4 definidas, usa c4 para esto.
-    # Si no, asegúrate de definir las columnas antes.
+    # 2. DEFINICIÓN DE COLUMNAS (Aquí corregimos el NameError)
+    c1, c2, c3, c4 = st.columns(4)
     
-    with c4: # Asumiendo que c4 es la columna de la derecha en tu grid
-        st.markdown(f"""
-        <div style="background-color: {color_bg_acida}; padding: 15px; border-radius: 10px; border: 1px solid #ddd; text-align: center; height: 320px; display: flex; flex-direction: column; justify-content: space-between;">
-            <div>
-                <h4 style="margin:0; font-size: 14px; color: #555;">Capacidad de Pago (Oxígeno)</h4>
-                <h2 style="margin:10px 0; font-size: 28px; color: #333;">{prueba_acida:.2f}x</h2>
-                <p style="font-weight: bold; font-size: 16px; margin: 0;">{icono_estado_acida}</p>
-            </div>
-            <hr style="margin: 5px 0; border-top: 1px solid rgba(0,0,0,0.1);">
-            <p style="font-size: 11px; color: #444; font-style: italic;">"{mensaje_veredicto_acida}"</p>
+    # Función auxiliar para tarjetas estándar
+    def tarjeta_kpi(col, titulo, valor, sufijo, target, inverso=False):
+        # Lógica de color simple
+        es_rojo = valor > target if not inverso else valor < target
+        color_bg = "#ffebee" if es_rojo else "#e8f5e9"
+        icono = "🔴" if es_rojo else "🟢"
+        
+        col.markdown(f"""
+        <div style="background-color: {color_bg}; padding: 15px; border-radius: 10px; border: 1px solid #ddd; text-align: center; height: 320px;">
+            <h4 style="margin:0; font-size: 14px; color: #555;">{titulo}</h4>
+            <h2 style="margin:10px 0; font-size: 28px; color: #333;">{valor:.1f}{sufijo}</h2>
+            <p style="font-size: 20px; margin: 0;">{icono}</p>
+            <hr>
+            <small>Meta: {target}{sufijo}</small>
         </div>
         """, unsafe_allow_html=True)
 
-    # 4. BOTÓN DE ACCIÓN AUTOMÁTICA (Fuera de las columnas para destacar)
+    # 3. RENDERIZADO DE TARJETAS
+    tarjeta_kpi(c1, "Eficiencia Alquiler", ratio_alquiler, "%", 15.0)
+    tarjeta_kpi(c2, "Peso Nómina (UB)", ratio_planilla_ub, "%", 45.0)
+    tarjeta_kpi(c3, "Cobertura Bancos", cobertura_bancaria, "x", 1.5, inverso=True)
+
+    # Tarjeta Especial de Oxígeno (c4)
+    with c4:
+        st.markdown(f"""
+        <div style="background-color: {color_bg_acida}; padding: 15px; border-radius: 10px; border: 1px solid #ddd; text-align: center; height: 320px; display: flex; flex-direction: column; justify-content: space-between;">
+            <div>
+                <h4 style="margin:0; font-size: 14px; color: #555;">Capacidad de Pago</h4>
+                <h2 style="margin:10px 0; font-size: 28px; color: #333;">{prueba_acida:.2f}x</h2>
+                <p style="font-weight: bold; font-size: 16px; margin: 0;">{icono_acida}</p>
+            </div>
+            <hr style="margin: 5px 0; width: 100%;">
+            <p style="font-size: 11px; color: #444; font-style: italic; line-height: 1.2;">"{msj_acida}"</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+    # 4. BOTÓN DE EMERGENCIA (RESCATE DE CAJA)
     if activar_rescate:
         st.markdown("---")
         st.error("🚨 **SISTEMA ACTIVADO:** Tu nivel de oxígeno es crítico (< 1.0).")
@@ -492,68 +519,28 @@ with tabs[1]:
             4.  🤝 **Renegociar:** Hablar con el banco para pedir solo pago de intereses este mes.
             """)
 
-# --- D. PRUEBA ÁCIDA: LÓGICA PERSONALIZADA (MONITOR DE OXÍGENO) ---
-    # 1. La Fórmula
-    pasivo_circulante = cuentas_pagar + deuda_bancaria # Asumimos deuda total corto plazo
-    if pasivo_circulante > 0:
-        prueba_acida = (caja + cuentas_cobrar) / pasivo_circulante
-    else:
-        prueba_acida = 0
+    # 5. GENERACIÓN DEL PLAN DE CHOQUE GENERAL
+    acciones_choque = []
+    if ratio_alquiler > 15: acciones_choque.append("🏢 **ALQUILER:** Renegociar contrato o subarrendar espacios.")
+    if ratio_planilla_ub > 45: acciones_choque.append("👥 **NÓMINA:** Revisar turnos improductivos y pasar a esquema variable.")
+    if cobertura_bancaria < 1.5: acciones_choque.append("🏦 **DEUDA:** No tomar más deuda. Solicitar periodo de gracia al banco.")
+    if activar_rescate: acciones_choque.append("🩸 **LIQUIDEZ:** Ejecutar Plan de Rescate de Caja inmediatamente.")
 
-    # 2. Los Rangos de Alerta (Semáforo de Soraya)
-    color_bg_acida = ""
-    icono_estado_acida = ""
-    mensaje_veredicto_acida = ""
-    activar_rescate = False
-
-    if prueba_acida < 1.0:
-        # 🔴 Rojo - Asfixia
-        color_bg_acida = "#ffebee" # Fondo Rojo Suave
-        icono_estado_acida = "🔴 Estado de Asfixia"
-        mensaje_veredicto_acida = "¡Alerta Roja! No tienes suficiente efectivo para cubrir tus deudas hoy. Estás operando en riesgo de insolvencia."
-        activar_rescate = True
-        
-    elif 1.0 <= prueba_acida < 1.5:
-        # 🟡 Naranja - Vigilancia
-        color_bg_acida = "#fff3e0" # Fondo Naranja Suave
-        icono_estado_acida = "🟡 Zona de Vigilancia"
-        mensaje_veredicto_acida = "Estás en el límite. Tienes lo justo para cumplir. Cualquier retraso en un cobro pondrá en riesgo tu operación."
-        
-    else:
-        # 🟢 Verde - Saludable
-        color_bg_acida = "#e8f5e9" # Fondo Verde Suave
-        icono_estado_acida = "🟢 Oxígeno Saludable"
-        mensaje_veredicto_acida = "Excelente. Tienes suficiente dinero para cubrir tus compromisos. Este oxígeno te da tiempo para decisiones estratégicas."
-
-    # 3. Visualización (Tarjeta Especial)
-    # Nota: Si ya tienes las columnas c1, c2, c3, c4 definidas, usa c4 para esto.
-    # Si no, asegúrate de definir las columnas antes.
+    # Guardar en Session State para el PDF
+    st.session_state['plan_choque'] = acciones_choque
     
-    with c4: # Asumiendo que c4 es la columna de la derecha en tu grid
-        st.markdown(f"""
-        <div style="background-color: {color_bg_acida}; padding: 15px; border-radius: 10px; border: 1px solid #ddd; text-align: center; height: 320px; display: flex; flex-direction: column; justify-content: space-between;">
-            <div>
-                <h4 style="margin:0; font-size: 14px; color: #555;">Capacidad de Pago (Oxígeno)</h4>
-                <h2 style="margin:10px 0; font-size: 28px; color: #333;">{prueba_acida:.2f}x</h2>
-                <p style="font-weight: bold; font-size: 16px; margin: 0;">{icono_estado_acida}</p>
-            </div>
-            <hr style="margin: 5px 0; border-top: 1px solid rgba(0,0,0,0.1);">
-            <p style="font-size: 11px; color: #444; font-style: italic;">"{mensaje_veredicto_acida}"</p>
-        </div>
-        """, unsafe_allow_html=True)
+    st.markdown("---")
+    st.subheader("🛡️ Plan de Choque Sugerido")
+    
+    if not acciones_choque:
+        st.success("✨ **MANTENIMIENTO:** Tu estructura es sólida. Enfócate en crecer.")
+    else:
+        for accion in acciones_choque:
+            if "MANTENIMIENTO" in accion:
+                st.success(accion)
+            else:
+                st.warning(accion)
 
-    # 4. BOTÓN DE ACCIÓN AUTOMÁTICA (Fuera de las columnas para destacar)
-    if activar_rescate:
-        st.markdown("---")
-        st.error("🚨 **SISTEMA ACTIVADO:** Tu nivel de oxígeno es crítico (< 1.0).")
-        with st.expander("🚑 PLAN DE RESCATE DE CAJA (Abrir Inmediatamente)", expanded=True):
-            st.markdown("""
-            **Protocolo de Emergencia:**
-            1.  🛑 **Congelar Pagos:** Detener pagos a proveedores no esenciales por 7 días.
-            2.  📞 **Cobranza Agresiva:** Llamar a todos los clientes con facturas vencidas hoy. Ofrece un 5% de descuento si pagan en 24h.
-            3.  📉 **Liquidar Inventario:** Rematar productos de baja rotación al costo para generar efectivo ya.
-            4.  🤝 **Renegociar:** Hablar con el banco para pedir solo pago de intereses este mes.
-            """)
 
 # --- TAB 4: SUPERVIVENCIA (MAPA GRÁFICO CON META) ---
 with tabs[3]:
@@ -1266,6 +1253,4 @@ if st.sidebar.button("🖨️ Generar Reporte Auditoría (PDF)"):
         st.sidebar.success("✅ Informe generado correctamente.")
     except Exception as e:
         st.sidebar.error(f"Error al generar PDF: {e}")
-
-
 
