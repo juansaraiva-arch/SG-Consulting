@@ -861,92 +861,80 @@ with tabs[3]:
 
         st.plotly_chart(fig_be, use_container_width=True)
         
-# --- TAB 5: OXÍGENO & SOLVENCIA (ACTUALIZADO) ---
+# --- TAB 5: MONITOR DE OXÍGENO (VERSIÓN NATIVA ESTABLE) ---
 with tabs[4]:
-    st.subheader("🫁 Monitor de Oxígeno: Liquidez y Solvencia")
-    
-    # --- CÁLCULOS DE SOLVENCIA ---
-    # 1. Prueba Ácida
-    pasivo_circulante = cuentas_pagar # Asumimos CP es mayormente proveedores para este nivel
-    if pasivo_circulante > 0:
-        prueba_acida = (caja + cuentas_cobrar) / pasivo_circulante
-    else:
-        prueba_acida = 0 # Evitar div/0
-    
-    # 2. Diagnóstico de Reputación (DCP vs Inventario)
-    # dias_inventario y dias_proveedor ya vienen calculados del backend
-    alerta_reputacion = ""
-    if dias_proveedor > 60 and dias_inventario > 60:
-        alerta_reputacion = "⚠️ ALERTA DE REPUTACIÓN: Estás financiando inventario estancado a costa de tus proveedores. Riesgo de corte de suministro."
-        estilo_alerta = "background-color: #ffebee; border-left: 5px solid #c62828; color: #b71c1c;"
-    elif dias_proveedor > 60:
-         alerta_reputacion = "⚠️ Cuidado: Estás estirando demasiado los pagos. Revisa tus acuerdos."
-         estilo_alerta = "background-color: #fff3e0; border-left: 5px solid #ff9800; color: #e65100;"
-    else:
-        alerta_reputacion = "✅ Relación sana con proveedores."
-        estilo_alerta = "background-color: #e8f5e9; border-left: 5px solid #2e7d32; color: #1b5e20;"
+    st.header("1. Monitor de Oxígeno: Liquidez y Solvencia")
 
-    # --- DISEÑO VISUAL ---
-    col_liq, col_pyr = st.columns([1, 1.2])
+    # A. RATIO DE LIQUIDEZ (PRUEBA ÁCIDA)
+    # Usamos las variables globales de la app
+    total_liquido = caja + cuentas_cobrar
+    pasivo_corto_plazo = cuentas_pagar + deuda_bancaria # Deuda Total CP
     
-    with col_liq:
-        st.markdown("### 1. Ratio de Liquidez (Prueba Ácida)")
-        
-        # Semáforo de Supervivencia
-        color_acida = "green"
-        mensaje_acida = ""
-        if prueba_acida > 1.1:
-            color_acida = "#2e7d32" # Verde
-            mensaje_acida = "🟢 TIENES OXÍGENO: Cubres tus deudas hoy sin problemas."
-        elif 0.8 <= prueba_acida <= 1.1:
-            color_acida = "#fbc02d" # Amarillo
-            mensaje_acida = "🟡 AL LÍMITE: Cualquier retraso en cobranza te dejará impago."
+    # Evitar división por cero
+    prueba_acida = total_liquido / pasivo_corto_plazo if pasivo_corto_plazo > 0 else 0
+
+    st.subheader("1. Ratio de Liquidez (Prueba Ácida)")
+    col1, col2 = st.columns([1, 2])
+
+    with col1:
+        st.metric(label="Prueba Ácida", value=f"{prueba_acida:.2f}x")
+
+    with col2:
+        if prueba_acida >= 1.0:
+            st.success("✅ **TIENES OXÍGENO:** Cubres tus deudas hoy sin problemas.")
         else:
-            color_acida = "#c62828" # Rojo
-            mensaje_acida = "🔴 INSOLVENCIA TÉCNICA: Debes más de lo que tienes líquido. Reestructuración urgente."
+            st.error("⚠️ **ALERTA DE ASFIXIA:** No cubres tus deudas de corto plazo. Riesgo de impago.")
+            
+            # Botón de Plan de Rescate (Solo aparece en emergencia)
+            with st.expander("🚑 VER PLAN DE RESCATE DE CAJA"):
+                st.markdown("""
+                1. 🛑 **Stop Pagos:** Congela pagos a proveedores no críticos por 7 días.
+                2. 📞 **Cobranza Flash:** Llama a clientes vencidos y ofrece 5% desc. por pago hoy.
+                3. 📉 **Remate:** Liquida inventario de baja rotación al costo.
+                """)
 
-        st.markdown(f"""
-        <div style="text-align: center; padding: 20px; border-radius: 10px; border: 2px solid {color_acida}; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-            <h2 style="color: {color_acida}; font-size: 48px; margin: 0;">{prueba_acida:.2f}</h2>
-            <p style="font-weight: bold; color: {color_acida};">{mensaje_acida}</p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        st.markdown("### 2. Gestión de Proveedores")
-        st.metric("Días Pago Proveedor (DCP)", f"{dias_proveedor:.0f} días", delta=f"{dias_inventario:.0f} días (Inv)", delta_color="inverse", help="Delta compara contra tus días de inventario")
-        
-        st.markdown(f"""
-        <div style="padding: 15px; border-radius: 5px; margin-top: 10px; {estilo_alerta}">
-            <strong>Diagnóstico:</strong> {alerta_reputacion}
-        </div>
-        """, unsafe_allow_html=True)
+    st.markdown("---")
 
-    with col_pyr:
-        st.markdown("### 🏛️ Pirámide de Obligaciones")
-        # Preparamos datos para la pirámide
-        # Estimamos Patrimonio (Capital Dueño) simplificado para el gráfico
-        # Nota: En un balance real, Patrimonio = Activos - Pasivos. Aquí usamos el valor calculado en Tab Valoración o un estimado.
-        patrimonio_estimado = (ebitda_mes * 12 * multiplo_global) - deuda_bancaria # Usamos valor empresa como proxy de equity
-        if patrimonio_estimado < 0: patrimonio_estimado = 0
-        
-        fig_pyramid = go.Figure(go.Funnel(
-            y = ["Deuda Patrimonial (Dueño)", "Deuda Financiera (Bancos)", "Deuda Operativa (Proveedores)"],
-            x = [patrimonio_estimado, deuda_bancaria, cuentas_pagar],
-            textinfo = "value+percent total",
-            marker = {"color": ["#1565c0", "#f9a825", "#c62828"]},
-            connector = {"line": {"color": "rgb(63, 63, 63)", "dash": "dot", "width": 1}}
-        ))
-        
-        fig_pyramid.update_layout(
-            title="¿A quién le pertenece el dinero?",
-            showlegend=False,
-            height=450,
-            margin=dict(l=100) # Margen para leer las etiquetas
-        )
-        st.plotly_chart(fig_pyramid, use_container_width=True)
-        
-        st.info("💡 **Lectura:** La base (Roja) es la deuda más peligrosa porque paraliza la operación. La cima (Azul) es lo que realmente te pertenece.")
+    # B. CICLO DE CONVERSIÓN DE EFECTIVO (CCC)
+    st.header("2. Ciclo de Conversión de Efectivo (CCC)")
 
+    # Usamos los días calculados previamente en el backend
+    # dias_calle, dias_inventario, dias_proveedor ya existen
+    ccc = dias_calle + dias_inventario - dias_proveedor
+
+    col3, col4, col5 = st.columns(3)
+    col3.metric("Calle (Clientes)", f"{dias_calle:.0f} días")
+    col4.metric("Inv. (Bodega)", f"{dias_inventario:.0f} días")
+    col5.metric("Prov. (Pago)", f"{dias_proveedor:.0f} días")
+
+    if ccc > 60:
+        st.warning(f"⚠️ **LENTO:** Tardas **{ccc:.0f} días** en recuperar tu dinero. Tu negocio consume mucha caja.")
+    elif ccc < 0:
+        st.success(f"🚀 **NEGATIVO:** ¡Excelente! Te financias con proveedores ({ccc:.0f} días).")
+    else:
+        st.info(f"ℹ️ **NORMAL:** Tardas **{ccc:.0f} días** en recuperar tu dinero.")
+
+    st.markdown("---")
+
+    # C. VISUALIZACIÓN DE DINERO ATRAPADO
+    st.subheader("¿Dónde está tu dinero? (Efectivo Atrapado)")
+    
+    total_atrapado = cuentas_cobrar + inventario
+
+    # Usamos st.warning para destacar el monto total (Estilo nativo limpio)
+    st.warning(f"💸 **Total Atrapado:** ${total_atrapado:,.2f}")
+    
+    # Desglose simple
+    c_trap1, c_trap2 = st.columns(2)
+    with c_trap1:
+        st.write(f"**📉 En la Calle (Clientes):**")
+        st.write(f"### ${cuentas_cobrar:,.2f}")
+    with c_trap2:
+        st.write(f"**📦 En Bodega (Inventario):**")
+        st.write(f"### ${inventario:,.2f}")
+
+    st.caption("💡 **Consultor:** No necesitas vender más para tener liquidez, necesitas liberar estos fondos (Factoring o Remates).")
+                
 # --- TAB 6: VALORACIÓN V2.5 (PATRIMONIO NETO) ---
 with tabs[5]:
     st.subheader("🏆 Motor de Riqueza: Valoración & Legado")
@@ -1538,6 +1526,7 @@ if st.sidebar.button("🖨️ Generar Reporte Auditoría (PDF)"):
         st.sidebar.success("✅ Informe generado correctamente.")
     except Exception as e:
         st.sidebar.error(f"Error al generar PDF: {e}")
+
 
 
 
