@@ -233,9 +233,10 @@ with tabs[0]:
     col_chart, col_text = st.columns([2, 1])
 
     with col_chart:
-        # 2. GRÁFICO CASCADA (WATERFALL)
+        # 2. GRÁFICO CASCADA (WATERFALL) - CORREGIDO
         fig_waterfall = go.Figure(go.Waterfall(
-            name = "Flujo de Caja", orientation = "v",
+            name = "Flujo de Caja", 
+            orientation = "v",
             measure = ["relative", "relative", "total", "relative", "total", "relative", "total"],
             x = ["Ventas", "Costo Ventas", "Ut. Bruta", "Gastos Op. (OPEX)", "EBITDA (Motor)", "Intereses/Imp", "Ut. Neta"],
             textposition = "outside",
@@ -243,10 +244,11 @@ with tabs[0]:
                     f"${val_opex/1000:.1f}k", f"${val_ebitda/1000:.1f}k", f"${val_fin_tax/1000:.1f}k", f"${val_neta/1000:.1f}k"],
             y = [val_ventas, val_cogs, 0, val_opex, 0, val_fin_tax, 0],
             connector = {"line":{"color":"rgb(63, 63, 63)"}},
-            decreasing = {"marker":{"color":"#ef5350"}}, # Rojo suave para gastos
-            increasing = {"marker":{"color":"#1565c0"}}, # Azul para ingresos
-            totals = {"marker":{"color": ["white", "white", "#424242", "white", color_ebitda, "white", color_neta]}} 
-            # El truco aquí es usar una lista de colores para los totales, destacando EBITDA y Neta
+            
+            # --- CORRECCIÓN DE COLORES ---
+            decreasing = {"marker":{"color":"#ef5350"}}, # Rojo suave para salidas de dinero
+            increasing = {"marker":{"color":"#1565c0"}}, # Azul para entradas
+            totals = {"marker":{"color":"#37474f"}}      # Gris Oscuro (Charcoal) para todos los Totales
         ))
         
         fig_waterfall.update_layout(
@@ -886,6 +888,7 @@ def create_pdf():
     pdf.cell(0, 10, "Generado por SG Consulting App - La Máquina de Verdad Financiera", 0, 1, 'C')
 
     return pdf.output(dest='S').encode('latin-1', 'replace')
+
 
 
 
