@@ -532,118 +532,201 @@ with tabs[1]:
         """)
 
 
-# --- TAB 3: SEMÁFORO INTEGRAL (VISUAL + LÓGICA) ---
+# --- TAB 3: SEMÁFORO DE RIESGOS & PLAN DE CHOQUE (VERSIÓN FINAL INTEGRADA) ---
 with tabs[2]:
-    st.subheader("🚦 Tablero de Control: Eficiencia y Riesgos")
+    st.subheader("🚦 Panel de Control de Riesgos (KPIs Críticos)")
     
-    # 1. CÁLCULOS DE RATIOS
+    # 1. CÁLCULO DE RATIOS GENERALES
+    # A. Alquiler
     ratio_alquiler = (gasto_alquiler_mes / ventas_mes) * 100 if ventas_mes > 0 else 0
+    # B. Planilla (Sobre Utilidad Bruta)
     ratio_planilla_ub = (gasto_planilla_mes / utilidad_bruta_mes) * 100 if utilidad_bruta_mes > 0 else 0
-    
+    # C. Cobertura Bancaria
     if intereses_mes > 0:
         cobertura_bancaria = ebitda_mes / intereses_mes
     else:
         cobertura_bancaria = 10.0
         
-    pasivo_circulante = cuentas_pagar + deuda_bancaria
-    prueba_acida = (caja + cuentas_cobrar) / pasivo_circulante if pasivo_circulante > 0 else 0
+    # D. PRUEBA ÁCIDA (MONITOR DE OXÍGENO) - Lógica Nueva
+    pasivo_circulante = cuentas_pagar + deuda_bancaria # Asumimos toda la deuda como CP para estrés
+    if pasivo_circulante > 0:
+        prueba_acida = (caja + cuentas_cobrar) / pasivo_circulante
+    else:
+        prueba_acida = 0
 
-    # 2. SECCIÓN VISUAL (PRIMERA FILA - LOS RELOJES DE LAS FOTOS)
-    c_gauge1, c_gauge2 = st.columns(2)
+    # Lógica del Semáforo de Oxígeno
+    activar_rescate = False
+    if prueba_acida < 1.0:
+        color_bg_acida = "#ffebee" # Rojo
+        icono_acida = "🔴 Asfixia"
+        msj_acida = "¡Alerta Roja! No cubres tus deudas hoy."
+        activar_rescate = True
+    elif 1.0 <= prueba_acida < 1.5:
+        color_bg_acida = "#fff3e0" # Naranja
+        icono_acida = "🟡 Vigilancia"
+        msj_acida = "Estás al límite. Cuidado con retrasos."
+    else:
+        color_bg_acida = "#e8f5e9" # Verde
+        icono_acida = "🟢 Oxígeno"
+        msj_acida = "Tienes liquidez para maniobrar."
 
-    # --- RELOJ DE ALQUILER ---
-    with c_gauge1:
-        color_renta = "green" if ratio_alquiler <= 10 else "orange" if ratio_alquiler <= 15 else "red"
-        fig_renta = go.Figure(go.Indicator(
-            mode = "gauge+number", value = ratio_alquiler,
-            title = {'text': "Eficiencia Alquiler (% Ventas)"},
-            gauge = {
-                'axis': {'range': [None, 30]}, 'bar': {'color': color_renta},
-                'steps': [{'range': [0, 15], 'color': "#e8f5e9"}, {'range': [15, 30], 'color': "#ffebee"}],
-                'threshold': {'line': {'color': "red", 'width': 4}, 'thickness': 0.75, 'value': 15}
-            }
+    # 2. DEFINICIÓN DE COLUMNAS (Aquí corregimos el NameError)
+    c1, c2, c3, c4 = st.columns(4)
+    
+    # --- DIAGNÓSTICO DE TALENTO & RADAR FISCAL (NUEVO) ---
+    st.markdown("### 📡 Radar Fiscal y Eficiencia de Talento")
+    
+    col_radar, col_talento = st.columns([1, 1.5])
+    
+    # 1. RADAR FISCAL (ITBMS)
+    with col_radar:
+        ventas_anual_proy = ventas_mes * 12
+        st.metric("Proyección Ventas Anuales", f"${ventas_anual_proy:,.0f}")
+        
+        if ventas_anual_proy >= 36000:
+            st.error("⚠️ **ALERTA DE CRECIMIENTO**")
+            st.markdown("""
+            <div style="background-color: #ffebee; padding: 10px; border-radius: 5px; border-left: 5px solid #c62828; font-size: 12px;">
+                <strong>OBLIGATORIO:</strong> Superaste los $36k anuales. Debes facturar el <strong>7% de ITBMS</strong>.
+                <br><br>👉 Ve al Lab de Precios y ajusta tus márgenes para no absorber este impuesto.
+            </div>
+            """, unsafe_allow_html=True)
+        elif ventas_anual_proy >= 30000:
+            st.warning("⚠️ **PRECAUCIÓN (Zona Amarilla)**")
+            st.caption("Estás cerca de los $36k. Prepara tu contabilidad para el ITBMS.")
+        else:
+            st.success("✅ **Régimen Simplificado**")
+            st.caption("Aún no estás obligado a cobrar ITBMS (< $36k).")
+
+    # 2. SEMÁFORO DE EFICIENCIA DE TALENTO
+    with col_talento:
+        # Cálculo del KPI
+        ratio_talento = (gasto_planilla_mes / utilidad_bruta_mes) * 100 if utilidad_bruta_mes > 0 else 0
+        
+        # Determinar Color
+        if ratio_talento < 35:
+            color_t = "green"; msg_t = "✅ Estructura Ágil (Lean)"
+        elif ratio_talento <= 45:
+            color_t = "orange"; msg_t = "⚠️ Zona de Cuidado"
+        else:
+            color_t = "red"; msg_t = "🚨 Estructura Obesa"
+            
+        st.markdown(f"**Eficiencia de Nómina (vs Ut. Bruta):** :**{color_t}[{ratio_talento:.1f}%]**")
+        st.progress(min(ratio_talento/100, 1.0), text=msg_t)
+        
+        if ratio_talento > 45:
+            st.caption("❌ Tu equipo cuesta más de lo que el negocio soporta. Revisa roles.")
+
+    # 3. GRÁFICO DE BRECHA DE SOBERANÍA
+    st.markdown("#### ⚖️ Brecha de Soberanía: Costo Empresa vs. Bolsillo Empleado")
+    
+    if 'detalles_nomina' in locals() and detalles_nomina:
+        df_chart_talento = pd.DataFrame(detalles_nomina)
+        
+        fig_talento = go.Figure()
+        
+        # Barra Costo Real (Lo que pagas tú)
+        fig_talento.add_trace(go.Bar(
+            y=df_chart_talento['Rol'],
+            x=df_chart_talento['Costo Empresa'],
+            name='Costo Real (Tu Gasto)',
+            orientation='h',
+            marker_color='#ef5350' # Rojo (Dolor Empresa)
         ))
-        fig_renta.update_layout(height=250, margin=dict(l=20, r=20, t=40, b=20))
-        st.plotly_chart(fig_renta, use_container_width=True)
-
-    # --- RELOJ DE NÓMINA ---
-    with c_gauge2:
-        color_nomina = "green" if ratio_planilla_ub <= 35 else "orange" if ratio_planilla_ub <= 45 else "red"
-        fig_nomina = go.Figure(go.Indicator(
-            mode = "gauge+number", value = ratio_planilla_ub,
-            title = {'text': "Peso Nómina (% Ut. Bruta)"},
-            gauge = {
-                'axis': {'range': [None, 60]}, 'bar': {'color': color_nomina},
-                'steps': [{'range': [0, 45], 'color': "#e8f5e9"}, {'range': [45, 60], 'color': "#ffebee"}],
-                'threshold': {'line': {'color': "red", 'width': 4}, 'thickness': 0.75, 'value': 45}
-            }
+        
+        # Barra Neto (Lo que recibe él)
+        fig_talento.add_trace(go.Bar(
+            y=df_chart_talento['Rol'],
+            x=df_chart_talento['Bolsillo Empleado'],
+            name='Salario Neto (Su Bolsillo)',
+            orientation='h',
+            marker_color='#66bb6a', # Verde (Alegría Empleado)
+            text=df_chart_talento['Bolsillo Empleado'].apply(lambda x: f"${x:,.0f}"),
+            textposition='auto'
         ))
-        fig_nomina.update_layout(height=250, margin=dict(l=20, r=20, t=40, b=20))
-        st.plotly_chart(fig_nomina, use_container_width=True)
-
-    # 3. SECCIÓN DE DEUDA Y LIQUIDEZ (SEGUNDA FILA - TARJETAS QUE NO PODEMOS PERDER)
-    c_kpi3, c_kpi4 = st.columns(2)
+        
+        fig_talento.update_layout(
+            barmode='group',
+            height=300,
+            title="¿Cuánto se queda en el camino (Impuestos/SS)?",
+            xaxis_title="Dinero ($)",
+            margin=dict(l=0, r=0, t=30, b=0)
+        )
+        st.plotly_chart(fig_talento, use_container_width=True)
+        st.info("💡 **Insight:** La diferencia entre la barra roja y la verde es el dinero que administras para el Estado (SS, SE, ISR).")
     
-    with c_kpi3: # Cobertura Bancaria
-        estado_banco = "🟢 Saludable" if cobertura_bancaria >= 1.5 else "🔴 Riesgo Default"
-        bg_banco = "#e8f5e9" if cobertura_bancaria >= 1.5 else "#ffebee"
-        st.markdown(f"""
-        <div style="background-color: {bg_banco}; padding: 15px; border-radius: 10px; border: 1px solid #ddd; text-align: center;">
-            <h5 style="margin:0; color:#555;">Cobertura Bancaria (EBITDA/Interés)</h5>
-            <h2 style="margin:5px 0;">{cobertura_bancaria:.1f}x</h2>
-            <small>{estado_banco}</small>
-        </div>
-        """, unsafe_allow_html=True)
-
-    with c_kpi4: # Prueba Ácida
-        estado_acida = "🟢 Oxígeno" if prueba_acida >= 1.0 else "🔴 Asfixia"
-        bg_acida = "#e8f5e9" if prueba_acida >= 1.0 else "#ffebee"
-        st.markdown(f"""
-        <div style="background-color: {bg_acida}; padding: 15px; border-radius: 10px; border: 1px solid #ddd; text-align: center;">
-            <h5 style="margin:0; color:#555;">Prueba Ácida (Liquidez Inmediata)</h5>
-            <h2 style="margin:5px 0;">{prueba_acida:.2f}x</h2>
-            <small>{estado_acida}</small>
-        </div>
-        """, unsafe_allow_html=True)
-
-    # 4. SIMULADOR DE RESCATE (COMO EN LA FOTO)
     st.markdown("---")
-    st.subheader("🔮 Simulador de Rescate")
-    
-    col_sim_controls, col_sim_results = st.columns(2)
-    with col_sim_controls:
-        st.write("**Metas de Reducción:**")
-        meta_alquiler = st.slider("Reducir Alquiler en (%):", 0, 50, 0, step=5)
-        meta_planilla = st.slider("Optimizar Planilla en (%):", 0, 50, 0, step=5)
-    
-    with col_sim_results:
-        ahorro = (gasto_alquiler_mes * meta_alquiler/100) + (gasto_planilla_mes * meta_planilla/100)
-        nuevo_ebitda = ebitda_mes + ahorro
-        st.markdown(f"""
-        <div style="background-color: #f1f8e9; padding: 20px; border-radius: 10px; border-left: 5px solid #2e7d32;">
-            <h4 style="margin:0; color: #2e7d32;">Impacto Patrimonial</h4>
-            <p>Dinero Recuperado Mensual: <strong style="color:green">+${ahorro:,.2f}</strong></p>
-            <p>Nuevo EBITDA Proyectado: <strong>${nuevo_ebitda:,.2f}</strong></p>
+
+    # Función auxiliar para tarjetas estándar
+    def tarjeta_kpi(col, titulo, valor, sufijo, target, inverso=False):
+        # Lógica de color simple
+        es_rojo = valor > target if not inverso else valor < target
+        color_bg = "#ffebee" if es_rojo else "#e8f5e9"
+        icono = "🔴" if es_rojo else "🟢"
+        
+        col.markdown(f"""
+        <div style="background-color: {color_bg}; padding: 15px; border-radius: 10px; border: 1px solid #ddd; text-align: center; height: 320px;">
+            <h4 style="margin:0; font-size: 14px; color: #555;">{titulo}</h4>
+            <h2 style="margin:10px 0; font-size: 28px; color: #333;">{valor:.1f}{sufijo}</h2>
+            <p style="font-size: 20px; margin: 0;">{icono}</p>
+            <hr>
+            <small>Meta: {target}{sufijo}</small>
         </div>
         """, unsafe_allow_html=True)
 
-    # 5. PLAN DE CHOQUE AUTOMÁTICO (RECUPERADO)
-    st.markdown("---")
-    st.subheader("🛡️ Plan de Choque Sugerido")
-    
+    # 3. RENDERIZADO DE TARJETAS
+    tarjeta_kpi(c1, "Eficiencia Alquiler", ratio_alquiler, "%", 15.0)
+    tarjeta_kpi(c2, "Peso Nómina (UB)", ratio_planilla_ub, "%", 45.0)
+    tarjeta_kpi(c3, "Cobertura Bancos", cobertura_bancaria, "x", 1.5, inverso=True)
+
+    # Tarjeta Especial de Oxígeno (c4)
+    with c4:
+        st.markdown(f"""
+        <div style="background-color: {color_bg_acida}; padding: 15px; border-radius: 10px; border: 1px solid #ddd; text-align: center; height: 320px; display: flex; flex-direction: column; justify-content: space-between;">
+            <div>
+                <h4 style="margin:0; font-size: 14px; color: #555;">Capacidad de Pago</h4>
+                <h2 style="margin:10px 0; font-size: 28px; color: #333;">{prueba_acida:.2f}x</h2>
+                <p style="font-weight: bold; font-size: 16px; margin: 0;">{icono_acida}</p>
+            </div>
+            <hr style="margin: 5px 0; width: 100%;">
+            <p style="font-size: 11px; color: #444; font-style: italic; line-height: 1.2;">"{msj_acida}"</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+    # 4. BOTÓN DE EMERGENCIA (RESCATE DE CAJA)
+    if activar_rescate:
+        st.markdown("---")
+        st.error("🚨 **SISTEMA ACTIVADO:** Tu nivel de oxígeno es crítico (< 1.0).")
+        with st.expander("🚑 PLAN DE RESCATE DE CAJA (Abrir Inmediatamente)", expanded=True):
+            st.markdown("""
+            **Protocolo de Emergencia:**
+            1.  🛑 **Congelar Pagos:** Detener pagos a proveedores no esenciales por 7 días.
+            2.  📞 **Cobranza Agresiva:** Llamar a todos los clientes con facturas vencidas hoy. Ofrece un 5% de descuento si pagan en 24h.
+            3.  📉 **Liquidar Inventario:** Rematar productos de baja rotación al costo para generar efectivo ya.
+            4.  🤝 **Renegociar:** Hablar con el banco para pedir solo pago de intereses este mes.
+            """)
+
+    # 5. GENERACIÓN DEL PLAN DE CHOQUE GENERAL
     acciones_choque = []
     if ratio_alquiler > 15: acciones_choque.append("🏢 **ALQUILER:** Renegociar contrato o subarrendar espacios.")
     if ratio_planilla_ub > 45: acciones_choque.append("👥 **NÓMINA:** Revisar turnos improductivos y pasar a esquema variable.")
-    if cobertura_bancaria < 1.5: acciones_choque.append("🏦 **DEUDA:** No tomar más deuda. Solicitar periodo de gracia.")
-    if prueba_acida < 1.0: acciones_choque.append("🩸 **LIQUIDEZ:** Ejecutar 'Plan de Rescate de Caja' (Ver Tab Oxígeno).")
+    if cobertura_bancaria < 1.5: acciones_choque.append("🏦 **DEUDA:** No tomar más deuda. Solicitar periodo de gracia al banco.")
+    if activar_rescate: acciones_choque.append("🩸 **LIQUIDEZ:** Ejecutar Plan de Rescate de Caja inmediatamente.")
 
-    st.session_state['plan_choque'] = acciones_choque # Guardar para PDF
+    # Guardar en Session State para el PDF
+    st.session_state['plan_choque'] = acciones_choque
+    
+    st.markdown("---")
+    st.subheader("🛡️ Plan de Choque Sugerido")
     
     if not acciones_choque:
         st.success("✨ **MANTENIMIENTO:** Tu estructura es sólida. Enfócate en crecer.")
     else:
         for accion in acciones_choque:
-            st.warning(accion)
+            if "MANTENIMIENTO" in accion:
+                st.success(accion)
+            else:
+                st.warning(accion)
 
 
 # --- TAB 4: SUPERVIVENCIA (MAPA GRÁFICO CON META) ---
@@ -779,78 +862,91 @@ with tabs[3]:
 
         st.plotly_chart(fig_be, use_container_width=True)
         
-# --- TAB 5: OXÍGENO INTEGRAL (VISUAL + PLAN DE RESCATE) ---
+# --- TAB 5: OXÍGENO & SOLVENCIA (ACTUALIZADO) ---
 with tabs[4]:
-    st.subheader("🫁 Monitor de Oxígeno y Dinero Atrapado")
+    st.subheader("🫁 Monitor de Oxígeno: Liquidez y Solvencia")
     
-    # Cálculos
-    dias_calle = (cuentas_cobrar / ventas_mes) * 30 if ventas_mes > 0 else 0
-    dias_inventario = (inventario / costo_ventas_mes) * 30 if costo_ventas_mes > 0 else 0
-    dias_proveedor = (cuentas_pagar / costo_ventas_mes) * 30 if costo_ventas_mes > 0 else 0
-    ccc = dias_calle + dias_inventario - dias_proveedor
-    dinero_atrapado_total = cuentas_cobrar + inventario
+    # --- CÁLCULOS DE SOLVENCIA ---
+    # 1. Prueba Ácida
+    pasivo_circulante = cuentas_pagar # Asumimos CP es mayormente proveedores para este nivel
+    if pasivo_circulante > 0:
+        prueba_acida = (caja + cuentas_cobrar) / pasivo_circulante
+    else:
+        prueba_acida = 0 # Evitar div/0
     
-    pasivo_total = cuentas_pagar + deuda_bancaria
-    prueba_acida = (caja + cuentas_cobrar) / pasivo_total if pasivo_total > 0 else 0
+    # 2. Diagnóstico de Reputación (DCP vs Inventario)
+    # dias_inventario y dias_proveedor ya vienen calculados del backend
+    alerta_reputacion = ""
+    if dias_proveedor > 60 and dias_inventario > 60:
+        alerta_reputacion = "⚠️ ALERTA DE REPUTACIÓN: Estás financiando inventario estancado a costa de tus proveedores. Riesgo de corte de suministro."
+        estilo_alerta = "background-color: #ffebee; border-left: 5px solid #c62828; color: #b71c1c;"
+    elif dias_proveedor > 60:
+         alerta_reputacion = "⚠️ Cuidado: Estás estirando demasiado los pagos. Revisa tus acuerdos."
+         estilo_alerta = "background-color: #fff3e0; border-left: 5px solid #ff9800; color: #e65100;"
+    else:
+        alerta_reputacion = "✅ Relación sana con proveedores."
+        estilo_alerta = "background-color: #e8f5e9; border-left: 5px solid #2e7d32; color: #1b5e20;"
 
-    col_izq, col_der = st.columns([1.5, 1.2])
+    # --- DISEÑO VISUAL ---
+    col_liq, col_pyr = st.columns([1, 1.2])
     
-    # --- COLUMNA IZQUIERDA: CCC + ALERTA DE OXÍGENO ---
-    with col_izq:
-        st.markdown("### Ciclo de Conversión de Efectivo (CCC)")
+    with col_liq:
+        st.markdown("### 1. Ratio de Liquidez (Prueba Ácida)")
         
-        # VISUAL: Número Gigante (Como en la foto)
-        color_ccc = "#333" if ccc < 60 else "#d32f2f"
-        st.markdown(f"<h1 style='font-size: 70px; margin: 0; color: {color_ccc}; line-height:1;'>{ccc:.0f} días</h1>", unsafe_allow_html=True)
-        st.caption("Días que tardas en recuperar cada dólar invertido.")
-        
-        # Métricas pequeñas
-        c1, c2, c3 = st.columns(3)
-        c1.metric("Calle", f"{dias_calle:.0f}")
-        c2.metric("Inventario", f"{dias_inventario:.0f}")
-        c3.metric("Proveedores", f"{dias_proveedor:.0f}")
-
-        # LÓGICA RECUPERADA: Alerta de Asfixia + Botón
-        st.markdown("---")
-        st.markdown(f"**Prueba Ácida Actual:** {prueba_acida:.2f}x")
-        
-        if prueba_acida < 1.0:
-            st.error("🚨 **ALERTA DE ASFIXIA:** No cubres tus deudas de hoy.")
-            with st.expander("🚑 ABRIR PLAN DE RESCATE DE CAJA", expanded=True):
-                st.markdown("""
-                1. 🛑 **Congelar Pagos:** Detener proveedores no esenciales 7 días.
-                2. 📞 **Cobranza:** Llamar clientes vencidos hoy (-5% descuento pronto pago).
-                3. 📉 **Remate:** Liquidar inventario lento al costo.
-                """)
+        # Semáforo de Supervivencia
+        color_acida = "green"
+        mensaje_acida = ""
+        if prueba_acida > 1.1:
+            color_acida = "#2e7d32" # Verde
+            mensaje_acida = "🟢 TIENES OXÍGENO: Cubres tus deudas hoy sin problemas."
+        elif 0.8 <= prueba_acida <= 1.1:
+            color_acida = "#fbc02d" # Amarillo
+            mensaje_acida = "🟡 AL LÍMITE: Cualquier retraso en cobranza te dejará impago."
         else:
-            st.success("✅ **OXÍGENO OK:** Tienes liquidez suficiente.")
+            color_acida = "#c62828" # Rojo
+            mensaje_acida = "🔴 INSOLVENCIA TÉCNICA: Debes más de lo que tienes líquido. Reestructuración urgente."
 
-    # --- COLUMNA DERECHA: TARJETA DE DINERO ATRAPADO (VISUAL FOTO) ---
-    with col_der:
-        st.markdown("<br>", unsafe_allow_html=True)
-        # HTML Tarjeta Gris con borde rojo
         st.markdown(f"""
-        <div style="background-color: #f5f5f5; padding: 25px; border-radius: 10px; border-left: 8px solid #c62828; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-            <h3 style="color: #424242; margin-top: 0;">💸 ¿Dónde está tu dinero?</h3>
-            <p style="color: #757575; font-size: 14px;">(Efectivo Atrapado)</p>
-            
-            <div style="margin-top: 20px; font-size: 15px;">
-                <p style="display: flex; justify-content: space-between; border-bottom: 1px solid #ddd; padding-bottom: 5px;">
-                    <span>En la Calle (Clientes):</span> <strong>${cuentas_cobrar:,.2f}</strong>
-                </p>
-                <p style="display: flex; justify-content: space-between; border-bottom: 1px solid #ddd; padding-bottom: 5px;">
-                    <span>En Bodega (Inventario):</span> <strong>${inventario:,.2f}</strong>
-                </p>
-            </div>
-            
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px;">
-                <span style="font-size: 18px; color: #616161;">Total Atrapado:</span>
-                <span style="font-size: 30px; font-weight: bold; color: #c62828;">${dinero_atrapado_total:,.2f}</span>
-            </div>
+        <div style="text-align: center; padding: 20px; border-radius: 10px; border: 2px solid {color_acida}; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            <h2 style="color: {color_acida}; font-size: 48px; margin: 0;">{prueba_acida:.2f}</h2>
+            <p style="font-weight: bold; color: {color_acida};">{mensaje_acida}</p>
         </div>
         """, unsafe_allow_html=True)
         
-        st.info("⚡ **Tip:** Libera esto con Factoring.")
+        st.markdown("### 2. Gestión de Proveedores")
+        st.metric("Días Pago Proveedor (DCP)", f"{dias_proveedor:.0f} días", delta=f"{dias_inventario:.0f} días (Inv)", delta_color="inverse", help="Delta compara contra tus días de inventario")
+        
+        st.markdown(f"""
+        <div style="padding: 15px; border-radius: 5px; margin-top: 10px; {estilo_alerta}">
+            <strong>Diagnóstico:</strong> {alerta_reputacion}
+        </div>
+        """, unsafe_allow_html=True)
+
+    with col_pyr:
+        st.markdown("### 🏛️ Pirámide de Obligaciones")
+        # Preparamos datos para la pirámide
+        # Estimamos Patrimonio (Capital Dueño) simplificado para el gráfico
+        # Nota: En un balance real, Patrimonio = Activos - Pasivos. Aquí usamos el valor calculado en Tab Valoración o un estimado.
+        patrimonio_estimado = (ebitda_mes * 12 * multiplo_global) - deuda_bancaria # Usamos valor empresa como proxy de equity
+        if patrimonio_estimado < 0: patrimonio_estimado = 0
+        
+        fig_pyramid = go.Figure(go.Funnel(
+            y = ["Deuda Patrimonial (Dueño)", "Deuda Financiera (Bancos)", "Deuda Operativa (Proveedores)"],
+            x = [patrimonio_estimado, deuda_bancaria, cuentas_pagar],
+            textinfo = "value+percent total",
+            marker = {"color": ["#1565c0", "#f9a825", "#c62828"]},
+            connector = {"line": {"color": "rgb(63, 63, 63)", "dash": "dot", "width": 1}}
+        ))
+        
+        fig_pyramid.update_layout(
+            title="¿A quién le pertenece el dinero?",
+            showlegend=False,
+            height=450,
+            margin=dict(l=100) # Margen para leer las etiquetas
+        )
+        st.plotly_chart(fig_pyramid, use_container_width=True)
+        
+        st.info("💡 **Lectura:** La base (Roja) es la deuda más peligrosa porque paraliza la operación. La cima (Azul) es lo que realmente te pertenece.")
 
 # --- TAB 6: VALORACIÓN V2.5 (PATRIMONIO NETO) ---
 with tabs[5]:
