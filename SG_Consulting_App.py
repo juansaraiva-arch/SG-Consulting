@@ -471,6 +471,90 @@ with tabs[2]:
     # 2. DEFINICIÓN DE COLUMNAS (Aquí corregimos el NameError)
     c1, c2, c3, c4 = st.columns(4)
     
+    # --- DIAGNÓSTICO DE TALENTO & RADAR FISCAL (NUEVO) ---
+    st.markdown("### 📡 Radar Fiscal y Eficiencia de Talento")
+    
+    col_radar, col_talento = st.columns([1, 1.5])
+    
+    # 1. RADAR FISCAL (ITBMS)
+    with col_radar:
+        ventas_anual_proy = ventas_mes * 12
+        st.metric("Proyección Ventas Anuales", f"${ventas_anual_proy:,.0f}")
+        
+        if ventas_anual_proy >= 36000:
+            st.error("⚠️ **ALERTA DE CRECIMIENTO**")
+            st.markdown("""
+            <div style="background-color: #ffebee; padding: 10px; border-radius: 5px; border-left: 5px solid #c62828; font-size: 12px;">
+                <strong>OBLIGATORIO:</strong> Superaste los $36k anuales. Debes facturar el <strong>7% de ITBMS</strong>.
+                <br><br>👉 Ve al Lab de Precios y ajusta tus márgenes para no absorber este impuesto.
+            </div>
+            """, unsafe_allow_html=True)
+        elif ventas_anual_proy >= 30000:
+            st.warning("⚠️ **PRECAUCIÓN (Zona Amarilla)**")
+            st.caption("Estás cerca de los $36k. Prepara tu contabilidad para el ITBMS.")
+        else:
+            st.success("✅ **Régimen Simplificado**")
+            st.caption("Aún no estás obligado a cobrar ITBMS (< $36k).")
+
+    # 2. SEMÁFORO DE EFICIENCIA DE TALENTO
+    with col_talento:
+        # Cálculo del KPI
+        ratio_talento = (gasto_planilla_mes / utilidad_bruta_mes) * 100 if utilidad_bruta_mes > 0 else 0
+        
+        # Determinar Color
+        if ratio_talento < 35:
+            color_t = "green"; msg_t = "✅ Estructura Ágil (Lean)"
+        elif ratio_talento <= 45:
+            color_t = "orange"; msg_t = "⚠️ Zona de Cuidado"
+        else:
+            color_t = "red"; msg_t = "🚨 Estructura Obesa"
+            
+        st.markdown(f"**Eficiencia de Nómina (vs Ut. Bruta):** :**{color_t}[{ratio_talento:.1f}%]**")
+        st.progress(min(ratio_talento/100, 1.0), text=msg_t)
+        
+        if ratio_talento > 45:
+            st.caption("❌ Tu equipo cuesta más de lo que el negocio soporta. Revisa roles.")
+
+    # 3. GRÁFICO DE BRECHA DE SOBERANÍA
+    st.markdown("#### ⚖️ Brecha de Soberanía: Costo Empresa vs. Bolsillo Empleado")
+    
+    if 'detalles_nomina' in locals() and detalles_nomina:
+        df_chart_talento = pd.DataFrame(detalles_nomina)
+        
+        fig_talento = go.Figure()
+        
+        # Barra Costo Real (Lo que pagas tú)
+        fig_talento.add_trace(go.Bar(
+            y=df_chart_talento['Rol'],
+            x=df_chart_talento['Costo Empresa'],
+            name='Costo Real (Tu Gasto)',
+            orientation='h',
+            marker_color='#ef5350' # Rojo (Dolor Empresa)
+        ))
+        
+        # Barra Neto (Lo que recibe él)
+        fig_talento.add_trace(go.Bar(
+            y=df_chart_talento['Rol'],
+            x=df_chart_talento['Bolsillo Empleado'],
+            name='Salario Neto (Su Bolsillo)',
+            orientation='h',
+            marker_color='#66bb6a', # Verde (Alegría Empleado)
+            text=df_chart_talento['Bolsillo Empleado'].apply(lambda x: f"${x:,.0f}"),
+            textposition='auto'
+        ))
+        
+        fig_talento.update_layout(
+            barmode='group',
+            height=300,
+            title="¿Cuánto se queda en el camino (Impuestos/SS)?",
+            xaxis_title="Dinero ($)",
+            margin=dict(l=0, r=0, t=30, b=0)
+        )
+        st.plotly_chart(fig_talento, use_container_width=True)
+        st.info("💡 **Insight:** La diferencia entre la barra roja y la verde es el dinero que administras para el Estado (SS, SE, ISR).")
+    
+    st.markdown("---")
+
     # Función auxiliar para tarjetas estándar
     def tarjeta_kpi(col, titulo, valor, sufijo, target, inverso=False):
         # Lógica de color simple
@@ -1353,5 +1437,6 @@ if st.sidebar.button("🖨️ Generar Reporte Auditoría (PDF)"):
         st.sidebar.success("✅ Informe generado correctamente.")
     except Exception as e:
         st.sidebar.error(f"Error al generar PDF: {e}")
+
 
 
