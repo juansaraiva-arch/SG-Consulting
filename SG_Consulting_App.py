@@ -10,6 +10,53 @@ import io
 # ==========================================
 st.set_page_config(page_title="SG Consulting | Máquina de Verdad Financiera", layout="wide", initial_sidebar_state="expanded")
 
+# ==========================================
+# 🇵🇦 MOTOR DE CÁLCULO NÓMINA PANAMÁ
+# ==========================================
+def calcular_carga_panama(salario, tipo):
+    """
+    Calcula el Costo Real para la empresa y el Neto para el empleado
+    basado en las leyes laborales de Panamá 2026.
+    """
+    if salario <= 0: return 0, 0, 0
+    
+    if tipo == "Planilla (Carga Patronal)":
+        # 1. Costos Patronales (Lo que paga la empresa ADICIONAL)
+        ss_patronal = salario * 0.1225
+        se_patronal = salario * 0.0150
+        rp_patronal = salario * 0.0150 # Riesgos Profesionales (Promedio)
+        decimo_prov = salario / 12     # Provisión XIII Mes (8.33%)
+        
+        carga_patronal = ss_patronal + se_patronal + rp_patronal + decimo_prov
+        costo_real_empresa = salario + carga_patronal
+        
+        # 2. Retenciones al Empleado (Lo que se descuenta)
+        ss_empleado = salario * 0.0975
+        se_empleado = salario * 0.0125
+        
+        # ISR (Tabla DGI Mensual 2025/2026 Proyectada)
+        isr_empleado = 0
+        if salario > 846.15:
+            excedente = salario - 846.15
+            isr_empleado = excedente * 0.15
+            
+        retenciones = ss_empleado + se_empleado + isr_empleado
+        salario_neto = salario - retenciones
+        
+        return costo_real_empresa, salario_neto, retenciones
+
+    elif tipo == "Servicios Profesionales (Freelance)":
+        # Empresa paga el bruto, pero retiene ISR si aplica o asume gasto
+        costo_real_empresa = salario 
+        
+        # Retención 10% (Si no presenta paz y salvo, práctica común retener)
+        retencion_10 = salario * 0.10
+        salario_neto = salario - retencion_10
+        
+        return costo_real_empresa, salario_neto, retencion_10
+    
+    return salario, salario, 0
+
 # Inicialización de Memoria (Session State)
 if 'lab_precios' not in st.session_state:
     st.session_state.lab_precios = []
@@ -76,21 +123,76 @@ with st.sidebar:
     
     df_historico = None 
 
-    # --- LÓGICA MODO A: FLASH (INPUT MANUAL) ---
+    # --- LÓGICA MODO A: FLASH (INPUT MANUAL CON MOTOR DE TALENTO) ---
     if modo_operacion == "Modo A: Diagnóstico Flash (Foto)":
         st.info("📸 **Modo Flash:** Ingresa los datos de un mes representativo.")
         
-        with st.expander("Datos del P&L (Mes)", expanded=True):
+        with st.expander("1. Ingresos y Costos Directos", expanded=True):
             ventas_mes = st.number_input("Ventas Totales ($)", value=50000.0, step=1000.0)
             costo_ventas_mes = st.number_input("Costo de Ventas (Variable)", value=30000.0, step=1000.0)
-            st.markdown("**Gastos Operativos (OPEX):**")
-            gasto_alquiler_mes = st.number_input("1. Alquiler + CAM", value=5000.0, step=100.0)
-            gasto_planilla_mes = st.number_input("2. Planilla Total", value=8000.0, step=500.0)
-            gasto_otros_mes = st.number_input("3. Otros Gastos", value=2000.0, step=100.0)
+
+        # --- AQUÍ ESTÁ LA MAGIA DEL TALENTO ---
+        with st.expander("2. Gestión de Talento (Nómina Inteligente)", expanded=True):
+            st.caption("Ingresa tu equipo. El sistema calcula SS, SE, RP y XIII Mes Automáticamente.")
+            
+            # Inicializar Editor de Datos si no existe
+            if 'df_nomina' not in st.session_state:
+                st.session_state.df_nomina = pd.DataFrame(
+                    [{"Nombre": "Gerente", "Tipo": "Planilla (Carga Patronal)", "Salario Pactado": 2500.0},
+                     {"Nombre": "Asistente", "Tipo": "Planilla (Carga Patronal)", "Salario Pactado": 850.0},
+                     {"Nombre": "Contador Ext", "Tipo": "Servicios Profesionales (Freelance)", "Salario Pactado": 300.0}]
+                )
+
+            # Editor Interactivo
+            df_editado = st.data_editor(
+                st.session_state.df_nomina,
+                num_rows="dynamic",
+                column_config={
+                    "Tipo": st.column_config.SelectboxColumn(
+                        "Tipo Contrato",
+                        options=["Planilla (Carga Patronal)", "Servicios Profesionales (Freelance)"],
+                        required=True
+                    ),
+                    "Salario Pactado": st.column_config.NumberColumn(
+                        "Salario Bruto",
+                        min_value=0,
+                        step=50,
+                        format="$%d"
+                    )
+                },
+                use_container_width=True
+            )
+            
+            # CÁLCULO EN TIEMPO REAL
+            costo_total_talento = 0.0
+            neto_total_equipo = 0.0
+            
+            # Iteramos para calcular costos ocultos
+            detalles_nomina = []
+            for index, row in df_editado.iterrows():
+                c_real, c_neto, ret = calcular_carga_panama(row['Salario Pactado'], row['Tipo'])
+                costo_total_talento += c_real
+                neto_total_equipo += c_neto
+                detalles_nomina.append({
+                    "Rol": row['Nombre'],
+                    "Costo Empresa": c_real,
+                    "Bolsillo Empleado": c_neto,
+                    "Retenciones Estado": ret
+                })
+            
+            # ASIGNACIÓN A LA VARIABLE GLOBAL (Esto mueve la Mandíbula)
+            gasto_planilla_mes = costo_total_talento
+            
+            st.markdown(f"**💰 Costo Real Nómina:** :red[${gasto_planilla_mes:,.2f}]")
+            st.caption(f"(Incluye Cargas Sociales Panamá: ${gasto_planilla_mes - df_editado['Salario Pactado'].sum():,.2f})")
+
+        with st.expander("3. Otros Gastos Operativos (OPEX)", expanded=False):
+            gasto_alquiler_mes = st.number_input("Alquiler + CAM", value=5000.0, step=100.0)
+            gasto_otros_mes = st.number_input("Servicios, Software, Mkt", value=2000.0, step=100.0)
             st.markdown("---")
             depreciacion_mes = st.number_input("Depreciación", value=2000.0, step=100.0)
             intereses_mes = st.number_input("Intereses", value=1000.0, step=100.0)
-            impuestos_mes = st.number_input("Impuestos", value=1500.0, step=100.0)
+            impuestos_mes = st.number_input("Impuestos (ISR Estimado)", value=1500.0, step=100.0)
 
     # --- LÓGICA MODO B: ESTRATEGA (CARGA EXCEL) ---
     else:
@@ -1437,6 +1539,7 @@ if st.sidebar.button("🖨️ Generar Reporte Auditoría (PDF)"):
         st.sidebar.success("✅ Informe generado correctamente.")
     except Exception as e:
         st.sidebar.error(f"Error al generar PDF: {e}")
+
 
 
 
