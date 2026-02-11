@@ -138,12 +138,15 @@ with st.sidebar:
             intereses_mes = 1000.0
             impuestos_mes = 1500.0
 
-    # --- BALANCE GENERAL (SIEMPRE VISIBLE) ---
-    with st.expander("Balance General (Saldos)", expanded=True):
-        st.caption("FOTO ACTUAL (No se divide ni promedia)")
-        inventario = st.number_input("Inventario ($)", value=20000.0)
+# --- BALANCE GENERAL (ACTUALIZADO PARA SOLVENCIA) ---
+    with st.expander("Balance General (Saldos & Deuda)", expanded=True):
+        st.caption("FOTO ACTUAL (Liquidez y Obligaciones)")
+        caja = st.number_input("Caja y Bancos ($)", value=5000.0, help="Dinero disponible ya.")
         cuentas_cobrar = st.number_input("Cuentas por Cobrar ($)", value=15000.0)
-        cuentas_pagar = st.number_input("Cuentas por Pagar ($)", value=10000.0)
+        inventario = st.number_input("Inventario ($)", value=20000.0)
+        st.markdown("---")
+        cuentas_pagar = st.number_input("Cuentas por Pagar (Proveedores) ($)", value=10000.0)
+        deuda_bancaria = st.number_input("Deuda Bancaria Total ($)", value=15000.0)
     
     # --- MULTIPLO PARA SIMULADOR GLOBAL ---
     multiplo_global = st.number_input("Múltiplo EBITDA (Ref. Global)", value=3.0, step=0.5)
@@ -547,78 +550,92 @@ with tabs[3]:
 
         st.plotly_chart(fig_be, use_container_width=True)
         
-# --- TAB 5: OXÍGENO & DINERO ATRAPADO (DISEÑO RESTAURADO) ---
+# --- TAB 5: OXÍGENO & SOLVENCIA (ACTUALIZADO) ---
 with tabs[4]:
+    st.subheader("🫁 Monitor de Oxígeno: Liquidez y Solvencia")
     
-    col_kpi_cash, col_trap = st.columns([1, 1.2])
+    # --- CÁLCULOS DE SOLVENCIA ---
+    # 1. Prueba Ácida
+    pasivo_circulante = cuentas_pagar # Asumimos CP es mayormente proveedores para este nivel
+    if pasivo_circulante > 0:
+        prueba_acida = (caja + cuentas_cobrar) / pasivo_circulante
+    else:
+        prueba_acida = 0 # Evitar div/0
     
-    # --- COLUMNA IZQUIERDA: MÉTRICAS CCC ---
-    with col_kpi_cash:
-        st.subheader("Ciclo de Conversión de Efectivo (CCC)")
-        st.caption("Ciclo de Caja (Días)")
-        
-        # Número Grande
-        st.markdown(f"<h1 style='font-size: 60px; margin: 0; color: #333;'>{ccc:.0f} días</h1>", unsafe_allow_html=True)
-        
-        st.markdown("<br>", unsafe_allow_html=True)
-        
-        # Las 3 Columnas pequeñas
-        c1, c2, c3 = st.columns(3)
-        with c1: st.metric("Calle (Cobro)", f"{dias_calle:.0f}")
-        with c2: st.metric("Inv. (Venta)", f"{dias_inventario:.0f}")
-        with c3: st.metric("Prov. (Pago)", f"{dias_proveedor:.0f}")
-        
-        st.markdown("<br>", unsafe_allow_html=True)
-        
-        # Mensaje de Diagnóstico (Caja de color)
-        if ccc > 0:
-            st.markdown(f"""
-            <div style="background-color: #fffde7; border-left: 5px solid #fbc02d; padding: 15px; border-radius: 5px;">
-                <p style="color: #f57f17; font-weight: bold; margin: 0;">⚠️ Tardas {ccc:.0f} días en recuperar tu dinero.</p>
-                <small style="color: #666;">Tu operación requiere financiamiento constante.</small>
-            </div>
-            """, unsafe_allow_html=True)
-        else:
-            st.markdown(f"""
-            <div style="background-color: #e8f5e9; border-left: 5px solid #2e7d32; padding: 15px; border-radius: 5px;">
-                <p style="color: #2e7d32; font-weight: bold; margin: 0;">✅ Ciclo Negativo: Te financias con proveedores.</p>
-            </div>
-            """, unsafe_allow_html=True)
+    # 2. Diagnóstico de Reputación (DCP vs Inventario)
+    # dias_inventario y dias_proveedor ya vienen calculados del backend
+    alerta_reputacion = ""
+    if dias_proveedor > 60 and dias_inventario > 60:
+        alerta_reputacion = "⚠️ ALERTA DE REPUTACIÓN: Estás financiando inventario estancado a costa de tus proveedores. Riesgo de corte de suministro."
+        estilo_alerta = "background-color: #ffebee; border-left: 5px solid #c62828; color: #b71c1c;"
+    elif dias_proveedor > 60:
+         alerta_reputacion = "⚠️ Cuidado: Estás estirando demasiado los pagos. Revisa tus acuerdos."
+         estilo_alerta = "background-color: #fff3e0; border-left: 5px solid #ff9800; color: #e65100;"
+    else:
+        alerta_reputacion = "✅ Relación sana con proveedores."
+        estilo_alerta = "background-color: #e8f5e9; border-left: 5px solid #2e7d32; color: #1b5e20;"
 
-    # --- COLUMNA DERECHA: TARJETA DE DINERO ATRAPADO ---
-    with col_trap:
-        st.markdown("<br>", unsafe_allow_html=True) # Espacio para alinear
+    # --- DISEÑO VISUAL ---
+    col_liq, col_pyr = st.columns([1, 1.2])
+    
+    with col_liq:
+        st.markdown("### 1. Ratio de Liquidez (Prueba Ácida)")
         
-        # Tarjeta Principal (Gris con borde rojo)
+        # Semáforo de Supervivencia
+        color_acida = "green"
+        mensaje_acida = ""
+        if prueba_acida > 1.1:
+            color_acida = "#2e7d32" # Verde
+            mensaje_acida = "🟢 TIENES OXÍGENO: Cubres tus deudas hoy sin problemas."
+        elif 0.8 <= prueba_acida <= 1.1:
+            color_acida = "#fbc02d" # Amarillo
+            mensaje_acida = "🟡 AL LÍMITE: Cualquier retraso en cobranza te dejará impago."
+        else:
+            color_acida = "#c62828" # Rojo
+            mensaje_acida = "🔴 INSOLVENCIA TÉCNICA: Debes más de lo que tienes líquido. Reestructuración urgente."
+
         st.markdown(f"""
-        <div style="background-color: #f5f5f5; padding: 25px; border-radius: 10px; border-left: 8px solid #c62828; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
-            <h3 style="color: #424242; margin-top: 0;">💸 ¿Dónde está tu dinero? (Efectivo Atrapado)</h3>
-            <div style="margin-top: 20px; font-size: 16px;">
-                <p style="display: flex; justify-content: space-between;">
-                    <span>Dinero en la Calle (Clientes):</span>
-                    <strong>${cuentas_cobrar:,.2f}</strong>
-                </p>
-                <p style="display: flex; justify-content: space-between;">
-                    <span>Dinero en Bodega (Inventario):</span>
-                    <strong>${inventario:,.2f}</strong>
-                </p>
-            </div>
-            <hr style="border-top: 1px solid #bdbdbd; margin: 15px 0;">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <span style="font-size: 18px; color: #616161;">Total Atrapado:</span>
-                <span style="font-size: 28px; font-weight: bold; color: #212121;">${dinero_atrapado_total:,.2f}</span>
-            </div>
+        <div style="text-align: center; padding: 20px; border-radius: 10px; border: 2px solid {color_acida}; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            <h2 style="color: {color_acida}; font-size: 48px; margin: 0;">{prueba_acida:.2f}</h2>
+            <p style="font-weight: bold; color: {color_acida};">{mensaje_acida}</p>
         </div>
         """, unsafe_allow_html=True)
         
-        # Caja Azul de Consejo (Consultor)
+        st.markdown("### 2. Gestión de Proveedores")
+        st.metric("Días Pago Proveedor (DCP)", f"{dias_proveedor:.0f} días", delta=f"{dias_inventario:.0f} días (Inv)", delta_color="inverse", help="Delta compara contra tus días de inventario")
+        
         st.markdown(f"""
-        <div style="margin-top: 15px; background-color: #e3f2fd; border-left: 5px solid #1565c0; padding: 15px; border-radius: 5px;">
-            <p style="color: #0d47a1; font-size: 14px; margin: 0;">
-                ⚡ <strong>Consultor:</strong> 'No necesitas vender más para tener liquidez, necesitas liberar esos fondos atrapados mediante Factoring o Remates de inventario lento'.
-            </p>
+        <div style="padding: 15px; border-radius: 5px; margin-top: 10px; {estilo_alerta}">
+            <strong>Diagnóstico:</strong> {alerta_reputacion}
         </div>
         """, unsafe_allow_html=True)
+
+    with col_pyr:
+        st.markdown("### 🏛️ Pirámide de Obligaciones")
+        # Preparamos datos para la pirámide
+        # Estimamos Patrimonio (Capital Dueño) simplificado para el gráfico
+        # Nota: En un balance real, Patrimonio = Activos - Pasivos. Aquí usamos el valor calculado en Tab Valoración o un estimado.
+        patrimonio_estimado = (ebitda_mes * 12 * multiplo_global) - deuda_bancaria # Usamos valor empresa como proxy de equity
+        if patrimonio_estimado < 0: patrimonio_estimado = 0
+        
+        fig_pyramid = go.Figure(go.Funnel(
+            y = ["Deuda Patrimonial (Dueño)", "Deuda Financiera (Bancos)", "Deuda Operativa (Proveedores)"],
+            x = [patrimonio_estimado, deuda_bancaria, cuentas_pagar],
+            textinfo = "value+percent total",
+            marker = {"color": ["#1565c0", "#f9a825", "#c62828"]},
+            connector = {"line": {"color": "rgb(63, 63, 63)", "dash": "dot", "width": 1}}
+        ))
+        
+        fig_pyramid.update_layout(
+            title="¿A quién le pertenece el dinero?",
+            showlegend=False,
+            height=450,
+            margin=dict(l=100) # Margen para leer las etiquetas
+        )
+        st.plotly_chart(fig_pyramid, use_container_width=True)
+        
+        st.info("💡 **Lectura:** La base (Roja) es la deuda más peligrosa porque paraliza la operación. La cima (Azul) es lo que realmente te pertenece.")
+
 # --- TAB 6: VALORACIÓN V2.5 (PATRIMONIO NETO) ---
 with tabs[5]:
     st.subheader("🏆 Motor de Riqueza: Valoración & Legado")
@@ -725,6 +742,7 @@ def create_pdf():
 st.sidebar.markdown("---")
 if st.sidebar.button("📄 Descargar PDF"):
     st.sidebar.download_button("💾 Guardar Informe", data=create_pdf(), file_name="SG_Informe_V2.5.pdf", mime="application/pdf")
+
 
 
 
