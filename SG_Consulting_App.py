@@ -262,28 +262,49 @@ with tabs[0]:
     with col_text:
         st.markdown("### 🩺 Diagnóstico Automático")
         
-        # --- LÓGICA DE DIAGNÓSTICO ---
-        # A. Análisis del Motor (EBITDA)
-        # Nota: Si estamos en Modo Flash, comparamos contra un ideal del 15%. Si hay histórico, comparamos tendencia.
+        # --- LÓGICA DE DIAGNÓSTICO (CORREGIDA) ---
         mensaje_motor = ""
         margen_ebitda_actual = (val_ebitda / val_ventas) * 100 if val_ventas > 0 else 0
         
+        # A. Análisis del Motor (EBITDA)
         if df_historico is not None:
-            # Lógica Avanzada (Tendencia)
-            crecimiento_ventas = (df_historico['Ventas'].iloc[-1] - df_historico['Ventas'].iloc[0])
-            crecimiento_ebitda = (df_historico['Utilidad_Neta'].iloc[-1] + df_historico['Depreciacion'].iloc[-1] + df_historico['Intereses'].iloc[-1] + df_historico['Impuestos'].iloc[-1]) - (df_historico['Utilidad_Neta'].iloc[0] + ...) # Simplificado
-            if crecimiento_ventas > 0 and crecimiento_ebitda <= 0:
-                 mensaje_motor = "⚠️ **Tu motor pierde potencia.** Estás vendiendo más, pero tu operación es menos eficiente. Revisa fugas en costos variables."
-            else:
-                 mensaje_motor = f"ℹ️ **Estado del Motor:** Tu margen EBITDA es del {margen_ebitda_actual:.1f}%."
-        else:
-            # Lógica Flash (Estática)
-            if margen_ebitda_actual < 10:
-                mensaje_motor = "⚠️ **Motor débil.** Tu margen operativo es muy bajo. Cualquier error te lleva a pérdidas."
-            else:
-                mensaje_motor = "✅ **Motor estable.** La operación genera flujo por sí misma."
+            # CORRECCIÓN: Calculamos EBITDA usando las columnas que SÍ existen
+            # EBITDA = Ventas - Costos Variables - Gastos Fijos (Sin contar impuestos/intereses)
+            
+            # 1. EBITDA del Último Mes (Final)
+            ebitda_ultimo = df_historico['Ventas'].iloc[-1] - (
+                df_historico['Costo_Ventas'].iloc[-1] + 
+                df_historico['Alquiler'].iloc[-1] + 
+                df_historico['Planilla'].iloc[-1] + 
+                df_historico['Otros_Gastos'].iloc[-1]
+            )
+            
+            # 2. EBITDA del Primer Mes (Inicio)
+            ebitda_primero = df_historico['Ventas'].iloc[0] - (
+                df_historico['Costo_Ventas'].iloc[0] + 
+                df_historico['Alquiler'].iloc[0] + 
+                df_historico['Planilla'].iloc[0] + 
+                df_historico['Otros_Gastos'].iloc[0]
+            )
 
-        # B. Alerta de la Mandíbula
+            crecimiento_ventas = (df_historico['Ventas'].iloc[-1] - df_historico['Ventas'].iloc[0])
+            crecimiento_ebitda = ebitda_ultimo - ebitda_primero
+            
+            # Lógica de comparación
+            if crecimiento_ventas > 0 and crecimiento_ebitda <= 0:
+                 mensaje_motor = "⚠️ **Tu motor pierde potencia.** Estás vendiendo más, pero ganas menos (EBITDA decreciente). Revisa fugas en costos variables."
+            elif crecimiento_ebitda > 0:
+                 mensaje_motor = f"🚀 **Motor Acelerando.** Tu EBITDA creció en ${crecimiento_ebitda:,.0f} respecto al inicio del año."
+            else:
+                 mensaje_motor = f"ℹ️ **Estado del Motor:** Tu margen EBITDA actual es del {margen_ebitda_actual:.1f}%."
+        else:
+            # Lógica Flash (Estática - Sin cambios)
+            if margen_ebitda_actual < 10:
+                mensaje_motor = "⚠️ **Motor débil.** Tu margen operativo es muy bajo (<10%). Cualquier error te lleva a pérdidas."
+            else:
+                mensaje_motor = "✅ **Motor estable.** La operación genera flujo positivo por sí misma."
+
+        # B. Alerta de la Mandíbula (Sin cambios)
         costos_totales_reales = abs(val_cogs) + abs(val_opex)
         mensaje_mandibula = ""
         if costos_totales_reales > val_ventas:
@@ -293,12 +314,12 @@ with tabs[0]:
             mensaje_mandibula = "🛡️ **Zona Segura:** Tus ventas cubren tus costos operativos. Mantén la vigilancia en el OPEX."
             style_m = "background-color: #e8f5e9; color: #1b5e20; border-left: 5px solid green;"
 
-        # C. Recomendación de Legado
+        # C. Recomendación de Legado (Sin cambios)
         mensaje_legado = ""
         if margen_ebitda_actual > 15:
-            mensaje_legado = "🚀 **EMPRESA SCALABLE:** Tu negocio es saludable (>15% EBITDA). Tienes capacidad real para reinvertir, abrir sucursales o retirar dividendos sin desangrar la empresa."
+            mensaje_legado = "🚀 **EMPRESA ESCALABLE:** Tu negocio es saludable (>15% EBITDA). Tienes capacidad para reinvertir sin desangrar la caja."
         elif val_neta > 0:
-            mensaje_legado = "🌱 **EMPRESA EN CRECIMIENTO:** Eres rentable, pero necesitas optimizar para escalar. No retires utilidades todavía."
+            mensaje_legado = "🌱 **EMPRESA EN CRECIMIENTO:** Eres rentable, pero necesitas optimizar antes de escalar agresivamente."
         else:
             mensaje_legado = "🚑 **EMPRESA EN TERAPIA:** Prioridad absoluta: Detener el sangrado de caja. No inviertas en nada nuevo."
 
@@ -888,6 +909,7 @@ def create_pdf():
     pdf.cell(0, 10, "Generado por SG Consulting App - La Máquina de Verdad Financiera", 0, 1, 'C')
 
     return pdf.output(dest='S').encode('latin-1', 'replace')
+
 
 
 
