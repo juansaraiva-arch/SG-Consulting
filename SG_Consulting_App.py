@@ -212,41 +212,113 @@ st.markdown(f"""<div class="verdict-box"><h3>{icono_veredicto} Veredicto de la E
 # TABS PRINCIPALES
 tabs = st.tabs(["💎 Cascada", "🦈 Mandíbulas (Tendencia)", "🚦 Semáforo & Simulador", "⚖️ Supervivencia", "🫁 Oxígeno", "🏆 Valoración V2.5", "🧪 Lab Precios"])
 
-# --- TAB 1: CASCADA (DIAGNÓSTICO FOTO) ---
+# --- TAB 1: CASCADA MAESTRA & DIAGNÓSTICO (ACTUALIZADO) ---
 with tabs[0]:
-    col_main, col_chart = st.columns([1.2, 1])
-    with col_main:
-        st.subheader("Diagnóstico de Potencia (Foto Promedio)")
-        
-        st.markdown('<div class="power-level-title">Nivel 1: Potencia Comercial (Bruta)</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="power-value">${utilidad_bruta_mes:,.2f} (Margen: {margen_bruto:.1f}%)</div>', unsafe_allow_html=True)
-        if margen_bruto > 30: st.markdown('<div class="check-box-success">✅ Modelo Saludable.</div>', unsafe_allow_html=True)
-        else: st.markdown('<div class="check-box-warning">⚠️ Margen Bajo.</div>', unsafe_allow_html=True)
+    st.subheader("💎 Cascada de Rentabilidad: La Ruta del Dinero")
+    
+    # 1. PREPARACIÓN DE DATOS PARA CASCADA
+    # Calculamos valores absolutos para graficar
+    val_ventas = ventas_mes
+    val_cogs = -costo_ventas_mes
+    val_bruta = utilidades_bruta_mes = val_ventas + val_cogs
+    val_opex = -(gasto_alquiler_mes + gasto_planilla_mes + gasto_otros_mes)
+    val_ebitda = val_bruta + val_opex
+    val_fin_tax = -(intereses_mes + impuestos_mes + depreciacion_mes) # Agrupamos para simplificar gráfico
+    val_neta = val_ebitda + val_fin_tax
+    
+    # Lógica de colores dinámica
+    color_ebitda = "#2e7d32" if val_ebitda > 0 else "#ef6c00" # Verde o Naranja
+    color_neta = "#1565c0" if val_neta > 0 else "#c62828"    # Azul o Rojo
 
-        st.markdown('<div class="power-level-title">Nivel 2: Potencia Operativa (EBITDA)</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="power-value">${ebitda_mes:,.2f} (Margen: {margen_ebitda:.1f}%)</div>', unsafe_allow_html=True)
-        if ebitda_mes > 0 and margen_ebitda > 10: st.markdown('<div class="check-box-success">✅ Corazón Fuerte.</div>', unsafe_allow_html=True)
-        elif ebitda_mes > 0: st.markdown('<div class="check-box-warning">⚠️ Vulnerable.</div>', unsafe_allow_html=True)
-        else: st.markdown('<div class="check-box-danger">🚨 Quema Efectivo.</div>', unsafe_allow_html=True)
-
-        st.markdown('<div class="power-level-title">Nivel 3: Potencia Activos (EBIT)</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="power-value">${ebit_mes:,.2f}</div>', unsafe_allow_html=True)
-        st.markdown('<div class="power-level-title">Nivel 4: Potencia Patrimonial (Neta)</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="power-value">${utilidad_neta_mes:,.2f} (Margen: {margen_neto:.1f}%)</div>', unsafe_allow_html=True)
+    col_chart, col_text = st.columns([2, 1])
 
     with col_chart:
+        # 2. GRÁFICO CASCADA (WATERFALL)
         fig_waterfall = go.Figure(go.Waterfall(
-            name = "20", orientation = "v",
-            measure = ["relative", "relative", "subtotal", "relative", "relative", "relative", "subtotal", "relative", "total"],
-            x = ["Ventas", "Costo Ventas", "Ut. Bruta", "Alquiler", "Planilla", "Otros Gastos", "EBITDA", "Otros", "Ut. Neta"],
-            y = [ventas_mes, -costo_ventas_mes, utilidad_bruta_mes, -gasto_alquiler_mes, -gasto_planilla_mes, -gasto_otros_mes, ebitda_mes, -(depreciacion_mes+intereses_mes+impuestos_mes), utilidad_neta_mes],
+            name = "Flujo de Caja", orientation = "v",
+            measure = ["relative", "relative", "total", "relative", "total", "relative", "total"],
+            x = ["Ventas", "Costo Ventas", "Ut. Bruta", "Gastos Op. (OPEX)", "EBITDA (Motor)", "Intereses/Imp", "Ut. Neta"],
+            textposition = "outside",
+            text = [f"${val_ventas/1000:.1f}k", f"${val_cogs/1000:.1f}k", f"${val_bruta/1000:.1f}k", 
+                    f"${val_opex/1000:.1f}k", f"${val_ebitda/1000:.1f}k", f"${val_fin_tax/1000:.1f}k", f"${val_neta/1000:.1f}k"],
+            y = [val_ventas, val_cogs, 0, val_opex, 0, val_fin_tax, 0],
             connector = {"line":{"color":"rgb(63, 63, 63)"}},
-            decreasing = {"marker":{"color":"#ef5350"}},
-            increasing = {"marker":{"color":"#66bb6a"}},
-            totals = {"marker":{"color":"#1565c0"}}
+            decreasing = {"marker":{"color":"#ef5350"}}, # Rojo suave para gastos
+            increasing = {"marker":{"color":"#1565c0"}}, # Azul para ingresos
+            totals = {"marker":{"color": ["white", "white", "#424242", "white", color_ebitda, "white", color_neta]}} 
+            # El truco aquí es usar una lista de colores para los totales, destacando EBITDA y Neta
         ))
-        fig_waterfall.update_layout(title="Cascada Detallada", height=600)
+        
+        fig_waterfall.update_layout(
+            title="De la Venta a la Bolsa (P&L)",
+            showlegend=False,
+            height=550,
+            waterfallgap=0.1
+        )
         st.plotly_chart(fig_waterfall, use_container_width=True)
+
+    with col_text:
+        st.markdown("### 🩺 Diagnóstico Automático")
+        
+        # --- LÓGICA DE DIAGNÓSTICO ---
+        # A. Análisis del Motor (EBITDA)
+        # Nota: Si estamos en Modo Flash, comparamos contra un ideal del 15%. Si hay histórico, comparamos tendencia.
+        mensaje_motor = ""
+        margen_ebitda_actual = (val_ebitda / val_ventas) * 100 if val_ventas > 0 else 0
+        
+        if df_historico is not None:
+            # Lógica Avanzada (Tendencia)
+            crecimiento_ventas = (df_historico['Ventas'].iloc[-1] - df_historico['Ventas'].iloc[0])
+            crecimiento_ebitda = (df_historico['Utilidad_Neta'].iloc[-1] + df_historico['Depreciacion'].iloc[-1] + df_historico['Intereses'].iloc[-1] + df_historico['Impuestos'].iloc[-1]) - (df_historico['Utilidad_Neta'].iloc[0] + ...) # Simplificado
+            if crecimiento_ventas > 0 and crecimiento_ebitda <= 0:
+                 mensaje_motor = "⚠️ **Tu motor pierde potencia.** Estás vendiendo más, pero tu operación es menos eficiente. Revisa fugas en costos variables."
+            else:
+                 mensaje_motor = f"ℹ️ **Estado del Motor:** Tu margen EBITDA es del {margen_ebitda_actual:.1f}%."
+        else:
+            # Lógica Flash (Estática)
+            if margen_ebitda_actual < 10:
+                mensaje_motor = "⚠️ **Motor débil.** Tu margen operativo es muy bajo. Cualquier error te lleva a pérdidas."
+            else:
+                mensaje_motor = "✅ **Motor estable.** La operación genera flujo por sí misma."
+
+        # B. Alerta de la Mandíbula
+        costos_totales_reales = abs(val_cogs) + abs(val_opex)
+        mensaje_mandibula = ""
+        if costos_totales_reales > val_ventas:
+            mensaje_mandibula = "🚨 **ALERTA DE LA MORDIDA:** Estás en la 'Zona de Mordida'. Cada dólar que vendes te cuesta más de un dólar producirlo. **ACCIÓN:** Ve al Lab de Precios YA."
+            style_m = "background-color: #ffebee; color: #b71c1c; border-left: 5px solid red;"
+        else:
+            mensaje_mandibula = "🛡️ **Zona Segura:** Tus ventas cubren tus costos operativos. Mantén la vigilancia en el OPEX."
+            style_m = "background-color: #e8f5e9; color: #1b5e20; border-left: 5px solid green;"
+
+        # C. Recomendación de Legado
+        mensaje_legado = ""
+        if margen_ebitda_actual > 15:
+            mensaje_legado = "🚀 **EMPRESA SCALABLE:** Tu negocio es saludable (>15% EBITDA). Tienes capacidad real para reinvertir, abrir sucursales o retirar dividendos sin desangrar la empresa."
+        elif val_neta > 0:
+            mensaje_legado = "🌱 **EMPRESA EN CRECIMIENTO:** Eres rentable, pero necesitas optimizar para escalar. No retires utilidades todavía."
+        else:
+            mensaje_legado = "🚑 **EMPRESA EN TERAPIA:** Prioridad absoluta: Detener el sangrado de caja. No inviertas en nada nuevo."
+
+        # RENDERIZADO DEL TEXTO
+        st.markdown(f"""
+        <div style="padding:15px; border-radius:5px; margin-bottom:10px; background-color: #f5f5f5;">
+            <strong>1. Análisis del Motor (EBITDA):</strong><br>{mensaje_motor}
+        </div>
+        
+        <div style="padding:15px; border-radius:5px; margin-bottom:10px; {style_m}">
+            <strong>2. Alerta de Mandíbula:</strong><br>{mensaje_mandibula}
+        </div>
+        
+        <div style="padding:15px; border-radius:5px; margin-bottom:10px; background-color: #e3f2fd; border-left: 5px solid #1565c0;">
+            <strong>3. Veredicto de Legado:</strong><br>{mensaje_legado}
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Guardamos en session state para el PDF
+        st.session_state['reporte_motor'] = mensaje_motor
+        st.session_state['reporte_mandibula'] = mensaje_mandibula
+        st.session_state['reporte_legado'] = mensaje_legado
 
 # --- TAB 2: LAS MANDÍBULAS (TENDENCIAS ACTUALIZADAS V2.5) ---
 with tabs[1]:
@@ -723,25 +795,97 @@ with tabs[6]:
             st.experimental_rerun()
 
 # ==========================================
-# PDF GENERATOR
+# PDF GENERATOR EVOLUCIONADO (V3.0)
 # ==========================================
 def create_pdf():
     class PDF(FPDF):
         def header(self):
-            self.set_fill_color(21, 101, 192); self.rect(0, 0, 210, 20, 'F')
-            self.set_y(5); self.set_font('Arial', 'B', 16); self.set_text_color(255)
-            self.cell(0, 10, 'SG CONSULTING | Informe V2.5', 0, 1, 'C'); self.ln(10)
-    
-    pdf = PDF(); pdf.add_page(); pdf.set_font('Arial', '', 12)
-    pdf.set_text_color(0)
-    pdf.cell(0, 10, f"Veredicto: {veredicto_final}", 0, 1)
-    pdf.cell(0, 10, f"EBITDA Mes: ${ebitda_mes:,.2f}", 0, 1)
-    pdf.cell(0, 10, f"Patrimonio Neto Est.: ${patrimonio if 'patrimonio' in locals() else 0:,.2f}", 0, 1)
-    return pdf.output(dest='S').encode('latin-1', 'replace')
+            # Banner Azul
+            self.set_fill_color(21, 101, 192)
+            self.rect(0, 0, 210, 25, 'F')
+            self.set_y(8)
+            self.set_font('Arial', 'B', 18)
+            self.set_text_color(255)
+            self.cell(0, 10, 'SG CONSULTING | Informe de Supervivencia', 0, 1, 'C')
+            self.ln(15)
+            
+        def footer(self):
+            self.set_y(-15)
+            self.set_font('Arial', 'I', 8)
+            self.set_text_color(128)
+            self.cell(0, 10, f'Pagina {self.page_no()}', 0, 0, 'C')
 
-st.sidebar.markdown("---")
-if st.sidebar.button("📄 Descargar PDF"):
-    st.sidebar.download_button("💾 Guardar Informe", data=create_pdf(), file_name="SG_Informe_V2.5.pdf", mime="application/pdf")
+    pdf = PDF()
+    pdf.add_page()
+    pdf.set_text_color(0)
+    
+    # --- PÁGINA 1: DATOS DUROS ---
+    pdf.set_font('Arial', 'B', 14)
+    pdf.cell(0, 10, '1. Radiografía Financiera (Mensual)', 0, 1)
+    
+    pdf.set_font('Arial', '', 11)
+    # Tabla simple de datos
+    datos = [
+        ("Ventas Totales", f"${ventas_mes:,.2f}"),
+        ("Costo de Ventas", f"(${costo_ventas_mes:,.2f})"),
+        ("Utilidad Bruta", f"${utilidad_bruta_mes:,.2f}"),
+        ("Gastos Operativos (OPEX)", f"(${gastos_operativos_mes:,.2f})"),
+        ("EBITDA (Caja Operativa)", f"${ebitda_mes:,.2f}"),
+        ("Utilidad Neta Final", f"${utilidad_neta_mes:,.2f}"),
+    ]
+    
+    for concepto, valor in datos:
+        pdf.cell(100, 8, concepto, 1)
+        pdf.cell(50, 8, valor, 1, 1, 'R')
+        
+    pdf.ln(10)
+    pdf.set_font('Arial', 'B', 14)
+    pdf.cell(0, 10, '2. Veredicto del Consultor', 0, 1)
+    pdf.set_font('Arial', 'I', 12)
+    pdf.multi_cell(0, 10, f"\"{veredicto_final}\"")
+
+    # --- PÁGINA 2: RESUMEN EJECUTIVO (NUEVO) ---
+    pdf.add_page()
+    pdf.set_fill_color(230, 230, 230)
+    pdf.rect(0, 0, 210, 297, 'F') # Fondo gris suave para resaltar que es "Premium"
+    pdf.set_fill_color(255, 255, 255)
+    pdf.rect(10, 30, 190, 240, 'F') # Tarjeta blanca central
+    
+    pdf.set_y(40)
+    pdf.set_font('Arial', 'B', 16)
+    pdf.cell(0, 10, 'RESUMEN EJECUTIVO DE SALUD', 0, 1, 'C')
+    pdf.ln(5)
+    
+    # Recuperamos textos del session state (o usamos defaults si no existen)
+    motor = st.session_state.get('reporte_motor', "Ejecute el análisis en la App primero.")
+    mandibula = st.session_state.get('reporte_mandibula', "Ejecute el análisis en la App primero.")
+    legado = st.session_state.get('reporte_legado', "Ejecute el análisis en la App primero.")
+
+    # Función auxiliar para imprimir bloques
+    def imprimir_bloque(titulo, contenido):
+        pdf.set_x(20)
+        pdf.set_font('Arial', 'B', 12)
+        pdf.set_text_color(21, 101, 192) # Azul Corporativo
+        pdf.cell(0, 10, titulo, 0, 1)
+        pdf.set_x(20)
+        pdf.set_font('Arial', '', 11)
+        pdf.set_text_color(50)
+        # Limpiamos emojis para el PDF (FPDF a veces falla con unicode)
+        contenido_limpio = contenido.encode('latin-1', 'replace').decode('latin-1')
+        pdf.multi_cell(170, 7, contenido_limpio)
+        pdf.ln(5)
+
+    imprimir_bloque("A. Análisis del Motor (EBITDA)", motor)
+    pdf.ln(5)
+    imprimir_bloque("B. Alerta de Riesgo (Mandíbula)", mandibula)
+    pdf.ln(5)
+    imprimir_bloque("C. Recomendación de Futuro", legado)
+    
+    pdf.set_y(-40)
+    pdf.set_font('Arial', 'I', 10)
+    pdf.cell(0, 10, "Generado por SG Consulting App - La Máquina de Verdad Financiera", 0, 1, 'C')
+
+    return pdf.output(dest='S').encode('latin-1', 'replace')
 
 
 
