@@ -777,53 +777,189 @@ with tabs[5]:
     
     st.markdown(f"""<div class="valuation-box"><h1 style="color: #0d47a1; text-align: center;">${patrimonio:,.2f}</h1><p style="text-align: center;">(Negocio + Edificio - Deuda)</p></div>""", unsafe_allow_html=True)
 
-# --- TAB 7: LAB DE PRECIOS V2.5 ---
+# --- TAB 7: LABORATORIO DE PRECIOS (SIMULADOR ESTRATÉGICO) ---
 with tabs[6]:
-    st.subheader("🧪 Lab de Precios (Bottom-Up)")
+    st.subheader("🧪 Simulador Estratégico: '¿Qué pasaría si...?'")
     
-    c1, c2 = st.columns(2)
-    with c1:
-        producto = st.text_input("Producto:", "Pastel Boda")
-        df_mat = pd.DataFrame([{"Item": "Insumos", "Costo": 10.0}])
-        edited_df = st.data_editor(df_mat, num_rows="dynamic", use_container_width=True)
-        mat = edited_df["Costo"].sum()
-    with c2:
-        st.markdown("**Mano de Obra (MOD)**")
-        salario = st.number_input("Salario Mes", 600.0)
-        mins = st.number_input("Minutos x Unidad", 60.0)
-        mod = (salario / (192*60)) * mins
-        capacidad = st.number_input("Capacidad Mes (Unds)", 500)
-        fijos_u = (gastos_operativos_mes / capacidad) if capacidad > 0 else 0
-        
-    costo_u = mat + mod + fijos_u
-    st.info(f"📊 **Costo Real Unitario: ${costo_u:,.2f}** (MOD: ${mod:,.2f})")
-    
-    st.markdown("---")
-    
-    c3, c4 = st.columns(2)
-    with c3:
-        margen = st.slider("Margen Deseado (%)", 10, 90, 30)
-        comision = st.slider("Comisión Plataforma (%)", 0, 50, 0)
-    with c4:
-        denom = 1 - ((margen + comision) / 100)
-        if denom > 0:
-            precio = costo_u / denom
-            itbms = precio * 0.07
-            final = precio + itbms
-            st.markdown(f"""<div style="border: 2px solid green; padding: 10px; border-radius: 10px; text-align: center;"><h3>Precio Sugerido: ${precio:,.2f}</h3><p>+ ITBMS: ${itbms:,.2f} | <strong>Ticket: ${final:,.2f}</strong></p></div>""", unsafe_allow_html=True)
-            if st.button("➕ Agregar a Tabla"):
-                st.session_state.lab_precios.append({
-                    "Producto": producto, "Costo": f"${costo_u:,.2f}", "Precio": f"${precio:,.2f}", 
-                    "Margen": f"{margen}%", "Ganancia": f"${precio*(margen/100):,.2f}"
-                })
-        else:
-            st.error("🚨 Imposible: Margen + Comisión > 100%")
+    # 1. VISUALIZACIÓN DE CONTROLES (SLIDERS)
+    st.markdown("""
+    <div style="background-color: #e3f2fd; padding: 15px; border-radius: 10px; border-left: 5px solid #1565c0; margin-bottom: 20px;">
+        <small>Mueve las palancas para ver cómo cambia tu futuro financiero en tiempo real.</small>
+    </div>
+    """, unsafe_allow_html=True)
 
-    if st.session_state.lab_precios:
-        st.table(pd.DataFrame(st.session_state.lab_precios))
-        if st.button("Limpiar"):
-            st.session_state.lab_precios = []
-            st.experimental_rerun()
+    col_controls, col_impact = st.columns([1, 1.5])
+
+    with col_controls:
+        st.markdown("### 🎛️ Palancas de Mando")
+        
+        # SLIDER A: PRECIO
+        delta_precio = st.slider("💰 A. Subir Precios (%)", 0, 50, 0, step=1, help="Incremento directo al precio de venta.")
+        
+        # SLIDER B: COSTOS (EFICIENCIA)
+        delta_costos = st.slider("✂️ B. Recortar Gastos Fijos (%)", 0, 50, 0, step=1, help="Optimización de Alquiler, Planilla y Otros Gastos.")
+        
+        # SLIDER C: VOLUMEN
+        delta_volumen = st.slider("📦 C. Variación de Volumen (%)", -50, 50, 0, step=1, help="¿Qué pasa si vendes más o menos unidades?")
+
+    # 2. MOTOR DE CÁLCULO (SIMULACIÓN)
+    # Definimos Factores
+    f_precio = 1 + (delta_precio / 100)
+    f_costos_fijos = 1 - (delta_costos / 100)
+    f_volumen = 1 + (delta_volumen / 100)
+
+    # Escenario Actual (Base)
+    base_ventas = ventas_mes
+    base_cv = costo_ventas_mes
+    base_fijos = gastos_operativos_mes
+    base_ebitda = ebitda_mes
+
+    # Escenario Simulado
+    # Ventas: Afectadas por Precio y Volumen
+    sim_ventas = base_ventas * f_precio * f_volumen
+    
+    # Costo Ventas (Variable): Afectado SOLO por Volumen (Si subo precio, mi costo de harina no sube)
+    sim_cv = base_cv * f_volumen
+    
+    # Gastos Fijos (OPEX): Afectados por Eficiencia (Slider B)
+    sim_fijos = base_fijos * f_costos_fijos
+    
+    # Nuevo EBITDA
+    sim_ebitda = sim_ventas - sim_cv - sim_fijos
+    sim_margen = (sim_ebitda / sim_ventas) * 100 if sim_ventas > 0 else 0
+
+    # 3. VISUALIZACIÓN DE IMPACTO (MANDÍBULA SIMULADA)
+    with col_impact:
+        st.markdown("### 🦈 Efecto en la Mandíbula")
+        
+        # Datos para el gráfico comparativo
+        x_stages = ["Actual", "Simulado"]
+        y_ventas = [base_ventas, sim_ventas]
+        y_costos = [base_cv + base_fijos, sim_cv + sim_fijos]
+        
+        fig_sim = go.Figure()
+        
+        # Línea Ventas
+        fig_sim.add_trace(go.Scatter(
+            x=x_stages, y=y_ventas, mode='lines+markers+text', name='Ventas',
+            text=[f"${v/1000:.1f}k" for v in y_ventas], textposition="top center",
+            line=dict(color='#1565c0', width=4)
+        ))
+        
+        # Línea Costos
+        fig_sim.add_trace(go.Scatter(
+            x=x_stages, y=y_costos, mode='lines+markers+text', name='Costos Totales',
+            text=[f"${v/1000:.1f}k" for v in y_costos], textposition="bottom center",
+            line=dict(color='#c62828', width=4)
+        ))
+        
+        # Sombreado de Utilidad (Area entre líneas)
+        fig_sim.add_trace(go.Scatter(
+            x=x_stages, y=y_ventas,
+            fill=None, mode='none', showlegend=False
+        ))
+        fig_sim.add_trace(go.Scatter(
+            x=x_stages, y=y_costos,
+            fill='tonexty', mode='none', showlegend=False,
+            fillcolor='rgba(76, 175, 80, 0.2)' if sim_ebitda > base_ebitda else 'rgba(239, 83, 80, 0.2)'
+        ))
+
+        fig_sim.update_layout(
+            title="Apertura de la Mandíbula (Rentabilidad)",
+            yaxis_title="Dinero ($)",
+            height=300,
+            margin=dict(l=20, r=20, t=40, b=20),
+            showlegend=True
+        )
+        st.plotly_chart(fig_sim, use_container_width=True)
+
+    # 4. METRICAS DE RESULTADO (VERDE SI LOGRA EL LEGADO)
+    st.markdown("---")
+    col_res1, col_res2, col_res3 = st.columns(3)
+    
+    delta_dinero = sim_ebitda - base_ebitda
+    color_delta = "normal" if delta_dinero >= 0 else "inverse"
+    
+    col_res1.metric("Nuevo EBITDA (Mensual)", f"${sim_ebitda:,.0f}", f"{delta_dinero:+,.0f} vs Actual", delta_color=color_delta)
+    col_res2.metric("Nuevo Margen", f"{sim_margen:.1f}%", f"{sim_margen - margen_ebitda:.1f}% vs Actual")
+    
+    # Veredicto de Objetivo (15%)
+    if sim_margen >= 15:
+        col_res3.markdown("""
+        <div style="background-color:#e8f5e9; padding:10px; border-radius:5px; border: 2px solid green; text-align:center;">
+            <h3 style="color:green; margin:0;">🏆 OBJETIVO LOGRADO</h3>
+            <small>Negocio de Legado (>15%)</small>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        col_res3.markdown(f"""
+        <div style="background-color:#ffebee; padding:10px; border-radius:5px; border: 2px solid red; text-align:center;">
+            <h3 style="color:red; margin:0;">FALTA POTENCIA</h3>
+            <small>Meta: 15% (Estás en {sim_margen:.1f}%)</small>
+        </div>
+        """, unsafe_allow_html=True)
+
+    # 5. EL ESCUDO CONTRA EL MIEDO (ANÁLISIS DE DESERCIÓN)
+    st.markdown("---")
+    st.subheader("🛡️ El Escudo contra el Miedo")
+    
+    if delta_precio > 0:
+        # Cálculo de Volumen de Equilibrio: %Q = - (%P) / (%P + %MargenContribucion)
+        # Margen de Contribución Actual %
+        mc_pct = ((base_ventas - base_cv) / base_ventas) if base_ventas > 0 else 0
+        
+        # Fórmula: Cuánto volumen puedo perder antes de ganar MENOS dinero que hoy
+        # Threshold = (New Price - Old Price) / New Margin per unit... 
+        # Simplificación porcentual:
+        try:
+            perdida_maxima_clientes_pct = (delta_precio / 100) / ((delta_precio/100) + mc_pct) * 100
+        except:
+            perdida_maxima_clientes_pct = 0
+            
+        st.info(f"""
+        **🧠 Dato de Paz Mental:**
+        Si subes tus precios un **{delta_precio}%**, puedes permitirte perder hasta el **{perdida_maxima_clientes_pct:.1f}%** de tus clientes (o ventas) y seguirás ganando **exactamente el mismo dinero** que hoy.
+        
+        *Traducción: Trabajarías un {perdida_maxima_clientes_pct:.1f}% menos para ganar lo mismo. ¡Tu tiempo vale!*
+        """)
+    else:
+        st.caption("Mueve el slider de 'Subir Precios' para activar el Escudo contra el Miedo.")
+
+    # 6. CALCULADOR DE LEGADO (PUNTO DE EQUILIBRIO INVERSO)
+    st.markdown("---")
+    st.subheader("🏛️ Calculador de Precio de Legado")
+    
+    # Objetivo: Margen EBITDA 15%
+    # Formula: Precio = Costos Totales / (1 - MargenDeseado) ... asumiendo volumen constante
+    # O mejor: Ventas Necesarias = Costos Totales / (1 - %CV - %MargenDeseado)
+    
+    target_margin = 0.15
+    ratio_cv = base_cv / base_ventas if base_ventas > 0 else 0
+    
+    # Denominador de seguridad
+    denominador = 1 - ratio_cv - target_margin
+    
+    if denominador > 0:
+        ventas_necesarias_legado = base_fijos / denominador
+        # Si asumimos mismo volumen, el precio debe subir
+        factor_ajuste_precio = ventas_necesarias_legado / base_ventas
+        precio_sugerido_pct = (factor_ajuste_precio - 1) * 100
+        
+        st.markdown(f"""
+        <div style="padding: 15px; border-left: 5px solid #fbc02d; background-color: #fffde7;">
+            <p style="font-size: 16px; margin: 0;">
+                📢 <strong>Veredicto del Consultor:</strong><br>
+                "Soraya, para que este negocio sea un <strong>Legado</strong> (y te deje un 15% limpio después de todo), 
+                tus ventas mensuales deberían ser de <strong>${ventas_necesarias_legado:,.0f}</strong>."
+            </p>
+            <p style="margin-top: 10px;">
+                Esto significa que, manteniendo tus costos actuales, deberías <strong>subir tus precios un {precio_sugerido_pct:.1f}%</strong> hoy mismo.
+                Cualquier número por debajo es un subsidio que sale de tu bolsillo.
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        st.error("Tu estructura de costos variables es demasiado alta. Incluso con precios infinitos, el margen variable no cubre el 15% de rentabilidad. ¡Optimiza costos variables primero!")
 
 # ==========================================
 # 📊 GENERADOR DE REPORTE "ULTIMATE CONSULTANT" (V FINAL)
@@ -1095,3 +1231,4 @@ if st.sidebar.button("🖨️ Generar Reporte Auditoría (PDF)"):
         st.sidebar.success("✅ Informe generado correctamente.")
     except Exception as e:
         st.sidebar.error(f"Error al generar PDF: {e}")
+
