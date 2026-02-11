@@ -1155,7 +1155,7 @@ with tabs[7]:
         <div style="padding: 15px; border-left: 5px solid #fbc02d; background-color: #fffde7;">
             <p style="font-size: 16px; margin: 0;">
                 📢 <strong>Veredicto del Consultor:</strong><br>
-                "Soraya, para que este negocio sea un <strong>Legado</strong> (y te deje un 15% limpio después de todo), 
+                "Empresario, para que este negocio sea un <strong>Legado</strong> (y te deje un 15% limpio después de todo), 
                 tus ventas mensuales deberían ser de <strong>${ventas_necesarias_legado:,.0f}</strong>."
             </p>
             <p style="margin-top: 10px;">
@@ -1437,6 +1437,7 @@ if st.sidebar.button("🖨️ Generar Reporte Auditoría (PDF)"):
         st.sidebar.success("✅ Informe generado correctamente.")
     except Exception as e:
         st.sidebar.error(f"Error al generar PDF: {e}")
+
 
 
 
