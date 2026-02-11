@@ -210,7 +210,8 @@ else:
 st.markdown(f"""<div class="verdict-box"><h3>{icono_veredicto} Veredicto de la Estratega:</h3><p style="font-size: 18px;">"{veredicto_final}"</p></div>""", unsafe_allow_html=True)
 
 # TABS PRINCIPALES
-tabs = st.tabs(["💎 Cascada", "🦈 Mandíbulas (Tendencia)", "🚦 Semáforo & Simulador", "⚖️ Supervivencia", "🫁 Oxígeno", "🏆 Valoración V2.5", "🧪 Lab Precios"])
+# TABS PRINCIPALES (AHORA SON 8)
+tabs = st.tabs(["💎 Cascada", "🦈 Mandíbulas", "🚦 Semáforo", "⚖️ Supervivencia", "🫁 Oxígeno", "🏆 Valoración", "🧪 Lab Precios (Unitario)", "🔮 Simulador (Estrategia)"])
 
 # --- TAB 1: CASCADA MAESTRA & DIAGNÓSTICO (ACTUALIZADO) ---
 with tabs[0]:
@@ -799,8 +800,107 @@ with tabs[5]:
     
     st.markdown(f"""<div class="valuation-box"><h1 style="color: #0d47a1; text-align: center;">${patrimonio:,.2f}</h1><p style="text-align: center;">(Negocio + Edificio - Deuda)</p></div>""", unsafe_allow_html=True)
 
-# --- TAB 7: LABORATORIO DE PRECIOS (SIMULADOR ESTRATÉGICO) ---
+# --- TAB 7: LAB DE PRECIOS (CÁLCULO UNITARIO) ---
 with tabs[6]:
+    st.subheader("🧪 Laboratorio de Precios: Ingeniería Inversa")
+    st.caption("Calcula el precio exacto de un producto basándote en tus costos reales y el margen que deseas.")
+
+    col_prod_izq, col_prod_der = st.columns(2)
+    
+    with col_prod_izq:
+        st.markdown("#### 1. Costos Directos (Receta)")
+        producto_nombre = st.text_input("Nombre del Producto:", "Ej. Pastel de Bodas")
+        
+        # Tabla de Insumos
+        st.write("Lista de Materiales:")
+        if 'df_insumos' not in st.session_state:
+            st.session_state.df_insumos = pd.DataFrame([
+                {"Ingrediente": "Harina", "Costo": 5.00},
+                {"Ingrediente": "Huevos", "Costo": 2.50},
+                {"Ingrediente": "Packaging", "Costo": 1.50}
+            ])
+            
+        edited_df = st.data_editor(st.session_state.df_insumos, num_rows="dynamic", use_container_width=True)
+        costo_materiales = edited_df["Costo"].sum()
+        
+        st.markdown(f"**Subtotal Materiales:** :red[${costo_materiales:,.2f}]")
+
+    with col_prod_der:
+        st.markdown("#### 2. Mano de Obra y Fijos")
+        
+        # Mano de Obra Directa (MOD)
+        salario_base = st.number_input("Salario Mensual Pastelero ($)", value=600.0)
+        minutos_elabaracion = st.number_input("Tiempo de Elaboración (Minutos)", value=120)
+        # Costo por minuto (asumiendo 192 horas al mes -> 11,520 minutos)
+        costo_minuto = salario_base / 11520
+        costo_mod = costo_minuto * minutos_elabaracion
+        
+        st.write(f"Costo Mano de Obra: **${costo_mod:,.2f}**")
+        
+        # Asignación de Gastos Fijos (Carga Fabril)
+        st.markdown("---")
+        capacidad_mensual = st.number_input("Capacidad de Producción (Unidades/Mes)", value=100, help="¿Cuántos de estos puedes hacer al mes si te dedicas solo a esto?")
+        
+        # Traemos el OPEX total calculado en la App
+        costo_fijo_unitario = gastos_operativos_mes / capacidad_mensual if capacidad_mensual > 0 else 0
+        
+        st.write(f"Carga de Fijos (Alquiler/Luz) por unidad: **${costo_fijo_unitario:,.2f}**")
+
+    # CÁLCULO FINAL DEL COSTO UNITARIO
+    costo_total_unitario = costo_materiales + costo_mod + costo_fijo_unitario
+    
+    st.markdown("---")
+    st.markdown(f"### 📦 Costo Real Unitario: :red[${costo_total_unitario:,.2f}]")
+    
+    # SECCIÓN DE PRECIO DE VENTA
+    st.subheader("3. Definición de Precio y Ganancia")
+    
+    c_margin, c_price = st.columns(2)
+    
+    with c_margin:
+        margen_deseado = st.slider("Margen de Ganancia Deseado (%)", 10, 90, 30)
+        comision_platform = st.slider("Comisión Plataforma/Tarjeta (%)", 0, 30, 0)
+        
+    with c_price:
+        # Fórmula Correcta: Precio = Costo / (1 - %Margen)
+        denominador = 1 - ((margen_deseado + comision_platform) / 100)
+        
+        if denominador > 0:
+            precio_sugerido = costo_total_unitario / denominador
+            itbms_item = precio_sugerido * 0.07
+            precio_final_cliente = precio_sugerido + itbms_item
+            
+            st.markdown(f"""
+            <div style="background-color: #e8f5e9; padding: 20px; border-radius: 10px; border: 2px solid #2e7d32; text-align: center;">
+                <small>Deberías cobrar (antes de impuestos):</small>
+                <h1 style="color: #2e7d32; margin: 0;">${precio_sugerido:,.2f}</h1>
+                <p>+ ITBMS (7%): ${itbms_item:,.2f}</p>
+                <hr>
+                <h3 style="color: #1b5e20;">Precio Final: ${precio_final_cliente:,.2f}</h3>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # Botón para guardar en historial
+            if st.button("➕ Guardar en Historial"):
+                st.session_state.lab_precios.append({
+                    "Producto": producto_nombre,
+                    "Costo Unitario": f"${costo_total_unitario:,.2f}",
+                    "Precio Venta": f"${precio_sugerido:,.2f}",
+                    "Margen %": f"{margen_deseado}%",
+                    "Ganancia Neta": f"${precio_sugerido - costo_total_unitario:,.2f}"
+                })
+        else:
+            st.error("🚨 Matemáticamente imposible: Margen + Comisión supera el 100%.")
+
+    # VISUALIZAR HISTORIAL
+    if st.session_state.lab_precios:
+        st.markdown("### 📋 Historial de Productos")
+        st.table(pd.DataFrame(st.session_state.lab_precios))
+        if st.button("🗑️ Limpiar Historial"):
+            st.session_state.lab_precios = []
+
+# --- TAB 8: SIMULADOR ESTRATÉGICO (MACRO) ---
+with tabs[7]:
     st.subheader("🧪 Simulador Estratégico: '¿Qué pasaría si...?'")
     
     # 1. VISUALIZACIÓN DE CONTROLES (SLIDERS)
@@ -1253,4 +1353,5 @@ if st.sidebar.button("🖨️ Generar Reporte Auditoría (PDF)"):
         st.sidebar.success("✅ Informe generado correctamente.")
     except Exception as e:
         st.sidebar.error(f"Error al generar PDF: {e}")
+
 
