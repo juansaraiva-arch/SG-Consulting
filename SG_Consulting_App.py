@@ -312,8 +312,17 @@ else:
 st.markdown(f"""<div class="verdict-box"><h3>{icono_veredicto} Veredicto de la Estratega:</h3><p style="font-size: 18px;">"{veredicto_final}"</p></div>""", unsafe_allow_html=True)
 
 # TABS PRINCIPALES
-# TABS PRINCIPALES (AHORA SON 8)
-tabs = st.tabs(["💎 Cascada", "🦈 Mandíbulas", "🚦 Semáforo", "⚖️ Supervivencia", "🫁 Oxígeno", "🏆 Valoración", "🧪 Lab Precios (Unitario)", "🔮 Simulador (Estrategia)"])
+# TABS PRINCIPALES (Orden Correcto: 0 a 7)
+tabs = st.tabs([
+    "💎 Cascada",                # Index 0
+    "🦈 Mandíbulas",             # Index 1
+    "🚦 Semáforo",               # Index 2
+    "🔮 Simulador (Estrategia)", # Index 3
+    "⚖️ Supervivencia",          # Index 4
+    "🫁 Oxígeno",                # Index 5
+    "🧪 Lab Precios (Unitario)", # Index 6
+    "🏆 Valoración"              # Index 7
+])
 
 # --- TAB 1: CASCADA MAESTRA & DIAGNÓSTICO (ACTUALIZADO) ---
 with tabs[0]:
@@ -729,8 +738,8 @@ with tabs[2]:
                 st.warning(accion)
 
 
-# --- TAB 4: SUPERVIVENCIA (MAPA GRÁFICO CON META) ---
-with tabs[3]:
+# --- TAB 5: SUPERVIVENCIA (MAPA GRÁFICO CON META) ---
+with tabs[4]:
     st.subheader("⚖️ Mapa de Supervivencia & Metas")
 
     # 1. PREPARACIÓN DE DATOS
@@ -862,8 +871,8 @@ with tabs[3]:
 
         st.plotly_chart(fig_be, use_container_width=True)
         
-# --- TAB 5: OXÍGENO & SOLVENCIA (ACTUALIZADO) ---
-with tabs[4]:
+# --- TAB 6: OXÍGENO & SOLVENCIA (ACTUALIZADO) ---
+with tabs[5]:
     st.subheader("🫁 Monitor de Oxígeno: Liquidez y Solvencia")
     
     # --- CÁLCULOS DE SOLVENCIA ---
@@ -948,8 +957,8 @@ with tabs[4]:
         
         st.info("💡 **Lectura:** La base (Roja) es la deuda más peligrosa porque paraliza la operación. La cima (Azul) es lo que realmente te pertenece.")
 
-# --- TAB 6: VALORACIÓN V2.5 (PATRIMONIO NETO) ---
-with tabs[5]:
+# --- TAB 8: VALORACIÓN V2.5 (PATRIMONIO NETO) ---
+with tabs[7]:
     st.subheader("🏆 Motor de Riqueza: Valoración & Legado")
     
     col_prop_1, col_prop_2 = st.columns(2)
@@ -1085,8 +1094,8 @@ with tabs[6]:
         if st.button("🗑️ Limpiar Historial"):
             st.session_state.lab_precios = []
 
-# --- TAB 8: SIMULADOR ESTRATÉGICO (MACRO) ---
-with tabs[7]:
+# --- TAB 4: SIMULADOR ESTRATÉGICO (MACRO) ---
+with tabs[3]:
     st.subheader("🧪 Simulador Estratégico: '¿Qué pasaría si...?'")
     
     # 1. VISUALIZACIÓN DE CONTROLES (SLIDERS)
