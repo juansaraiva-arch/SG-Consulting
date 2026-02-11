@@ -826,104 +826,200 @@ with tabs[6]:
             st.experimental_rerun()
 
 # ==========================================
-# PDF GENERATOR EVOLUCIONADO (V3.0)
+# 📊 GENERADOR DE REPORTE PROFESIONAL (PDF V5.0)
 # ==========================================
-def create_pdf():
+# Nota: Colocar este bloque al final del script para asegurar que tiene todos los datos.
+
+from datetime import datetime
+
+def create_professional_pdf():
     class PDF(FPDF):
         def header(self):
-            # Banner Azul
-            self.set_fill_color(21, 101, 192)
-            self.rect(0, 0, 210, 25, 'F')
-            self.set_y(8)
-            self.set_font('Arial', 'B', 18)
-            self.set_text_color(255)
-            self.cell(0, 10, 'SG CONSULTING | Informe de Supervivencia', 0, 1, 'C')
-            self.ln(15)
+            # Logo / Banner Corporativo
+            self.set_fill_color(21, 101, 192) # Azul Corporativo
+            self.rect(0, 0, 210, 40, 'F')
             
+            self.set_y(10)
+            self.set_font('Arial', 'B', 24)
+            self.set_text_color(255)
+            self.cell(0, 10, 'SG CONSULTING', 0, 1, 'C')
+            
+            self.set_font('Arial', 'I', 12)
+            self.cell(0, 10, 'La Máquina de Verdad Financiera', 0, 1, 'C')
+            self.ln(20)
+
         def footer(self):
             self.set_y(-15)
             self.set_font('Arial', 'I', 8)
             self.set_text_color(128)
-            self.cell(0, 10, f'Pagina {self.page_no()}', 0, 0, 'C')
+            fecha = datetime.now().strftime("%d/%m/%Y %H:%M")
+            self.cell(0, 10, f'Generado el {fecha} | Página {self.page_no()}', 0, 0, 'C')
+
+        def section_title(self, title):
+            self.set_font('Arial', 'B', 14)
+            self.set_fill_color(240, 240, 240)
+            self.set_text_color(33)
+            self.cell(0, 10, f"  {title}", 0, 1, 'L', 1)
+            self.ln(5)
+
+        def kpi_card(self, label, value, color_status):
+            # Dibuja una tarjeta de KPI con semáforo visual
+            self.set_font('Arial', '', 10)
+            self.set_text_color(50)
+            self.cell(90, 8, label, 0, 0)
+            
+            self.set_font('Arial', 'B', 10)
+            if color_status == 'ROJO': self.set_text_color(198, 40, 40)
+            elif color_status == 'AMARILLO': self.set_text_color(255, 160, 0)
+            else: self.set_text_color(46, 125, 50)
+            
+            self.cell(40, 8, value, 0, 1, 'R')
+            self.set_text_color(0) # Reset
 
     pdf = PDF()
     pdf.add_page()
-    pdf.set_text_color(0)
     
-    # --- PÁGINA 1: DATOS DUROS ---
-    pdf.set_font('Arial', 'B', 14)
-    pdf.cell(0, 10, '1. Radiografía Financiera (Mensual)', 0, 1)
+    # --- 1. RESUMEN EJECUTIVO (FOTO) ---
+    pdf.section_title("1. RADIOGRAFÍA FINANCIERA (P&L)")
     
+    # Tabla Principal
     pdf.set_font('Arial', '', 11)
-    # Tabla simple de datos
-    datos = [
-        ("Ventas Totales", f"${ventas_mes:,.2f}"),
-        ("Costo de Ventas", f"(${costo_ventas_mes:,.2f})"),
-        ("Utilidad Bruta", f"${utilidad_bruta_mes:,.2f}"),
-        ("Gastos Operativos (OPEX)", f"(${gastos_operativos_mes:,.2f})"),
-        ("EBITDA (Caja Operativa)", f"${ebitda_mes:,.2f}"),
-        ("Utilidad Neta Final", f"${utilidad_neta_mes:,.2f}"),
+    
+    # Datos recuperados de las variables globales del script
+    data_pl = [
+        ("Ventas Totales", ventas_mes, ""),
+        ("(-) Costo de Ventas", costo_ventas_mes, ""),
+        ("(=) Utilidad Bruta", utilidad_bruta_mes, ""),
+        ("(-) Gastos Operativos (OPEX)", gastos_operativos_mes, ""),
+        ("(=) EBITDA (Motor del Negocio)", ebitda_mes, "KEY"), # Marcado como clave
+        ("(-) Intereses e Impuestos", intereses_mes + impuestos_mes + depreciacion_mes, ""),
+        ("(=) Utilidad Neta", utilidad_neta_mes, "KEY")
     ]
+
+    for label, val, tag in data_pl:
+        pdf.set_font('Arial', 'B' if tag=="KEY" else '', 11)
+        pdf.cell(100, 8, label, 1)
+        pdf.cell(50, 8, f"${val:,.2f}", 1, 1, 'R')
+
+    pdf.ln(5)
     
-    for concepto, valor in datos:
-        pdf.cell(100, 8, concepto, 1)
-        pdf.cell(50, 8, valor, 1, 1, 'R')
-        
+    # --- 2. DIAGNÓSTICO DEL CONSULTOR ---
+    pdf.section_title("2. DIAGNÓSTICO DE INTELIGENCIA (Veredictos)")
+    
+    # Recuperar textos del session_state (generados en los Tabs)
+    motor_txt = st.session_state.get('reporte_motor', "Sin diagnóstico.")
+    mandibula_txt = st.session_state.get('reporte_mandibula', "Sin diagnóstico.")
+    legado_txt = st.session_state.get('reporte_legado', "Sin diagnóstico.")
+    
+    pdf.set_font('Arial', 'B', 10); pdf.set_text_color(21, 101, 192)
+    pdf.cell(0, 8, "Estado del Motor (EBITDA):", 0, 1)
+    pdf.set_font('Arial', '', 10); pdf.set_text_color(50)
+    pdf.multi_cell(0, 6, motor_txt.encode('latin-1', 'replace').decode('latin-1'))
+    pdf.ln(3)
+
+    pdf.set_font('Arial', 'B', 10); pdf.set_text_color(198, 40, 40)
+    pdf.cell(0, 8, "Riesgo de Mandíbulas (Costos vs Ventas):", 0, 1)
+    pdf.set_font('Arial', '', 10); pdf.set_text_color(50)
+    pdf.multi_cell(0, 6, mandibula_txt.encode('latin-1', 'replace').decode('latin-1'))
+    pdf.ln(3)
+
+    # --- 3. SEMÁFOROS Y SOLVENCIA (VISUAL) ---
+    pdf.ln(5)
+    pdf.section_title("3. TABLERO DE CONTROL (SEMÁFOROS)")
+    
+    # Recálculo rápido de estados para el reporte
+    ratio_alq = (gasto_alquiler_mes / ventas_mes) * 100 if ventas_mes > 0 else 0
+    ratio_nom = (gasto_planilla_mes / utilidad_bruta_mes) * 100 if utilidad_bruta_mes > 0 else 0
+    pasivo = cuentas_pagar if 'cuentas_pagar' in locals() else 1
+    acida = (caja + cuentas_cobrar) / pasivo if pasivo > 0 else 0
+    
+    # Renderizado de KPIs con lógica de color
+    pdf.kpi_card("Eficiencia Alquiler (<15%)", f"{ratio_alq:.1f}%", 'ROJO' if ratio_alq > 15 else 'VERDE')
+    pdf.kpi_card("Peso Nómina vs Ut. Bruta (<45%)", f"{ratio_nom:.1f}%", 'ROJO' if ratio_nom > 45 else 'VERDE')
+    pdf.kpi_card("Prueba Ácida (Liquidez > 0.8)", f"{acida:.2f}x", 'ROJO' if acida < 0.8 else 'VERDE')
+    
+    # Barra visual simulada para EBITDA
+    pdf.ln(5)
+    pdf.set_font('Arial', 'B', 10); pdf.set_text_color(0)
+    pdf.cell(0, 8, "Visualización de Márgenes (Ventas vs EBITDA vs Neta):", 0, 1)
+    
+    # Dibujar barras proporcionales
+    w_max = 150 # Ancho máximo en mm
+    if ventas_mes > 0:
+        w_ventas = w_max
+        w_ebitda = (ebitda_mes / ventas_mes) * w_max
+        w_neta = (utilidad_neta_mes / ventas_mes) * w_max
+    else:
+        w_ventas = w_ebitda = w_neta = 0
+
+    # Barra Ventas (Azul)
+    pdf.set_fill_color(33, 150, 243)
+    pdf.cell(30, 6, "Ventas", 0, 0)
+    pdf.rect(pdf.get_x(), pdf.get_y(), w_ventas, 6, 'F')
+    pdf.ln(8)
+    
+    # Barra EBITDA (Verde o Naranja)
+    pdf.set_fill_color(76, 175, 80) if ebitda_mes > 0 else pdf.set_fill_color(255, 152, 0)
+    pdf.cell(30, 6, "EBITDA", 0, 0)
+    if w_ebitda > 0: pdf.rect(pdf.get_x(), pdf.get_y(), w_ebitda, 6, 'F')
+    pdf.ln(8)
+
+    # Barra Neta (Gris Oscuro)
+    pdf.set_fill_color(66, 66, 66)
+    pdf.cell(30, 6, "Neta", 0, 0)
+    if w_neta > 0: pdf.rect(pdf.get_x(), pdf.get_y(), w_neta, 6, 'F')
     pdf.ln(10)
-    pdf.set_font('Arial', 'B', 14)
-    pdf.cell(0, 10, '2. Veredicto del Consultor', 0, 1)
-    pdf.set_font('Arial', 'I', 12)
-    pdf.multi_cell(0, 10, f"\"{veredicto_final}\"")
 
-    # --- PÁGINA 2: RESUMEN EJECUTIVO (NUEVO) ---
+    # --- 4. PLAN DE CHOQUE (NUEVA PÁGINA) ---
     pdf.add_page()
-    pdf.set_fill_color(230, 230, 230)
-    pdf.rect(0, 0, 210, 297, 'F') # Fondo gris suave para resaltar que es "Premium"
-    pdf.set_fill_color(255, 255, 255)
-    pdf.rect(10, 30, 190, 240, 'F') # Tarjeta blanca central
+    pdf.set_fill_color(183, 28, 28) # Rojo Intenso
+    pdf.rect(0, 0, 210, 30, 'F')
+    pdf.set_y(10)
+    pdf.set_font('Arial', 'B', 16); pdf.set_text_color(255)
+    pdf.cell(0, 10, "PLAN DE CHOQUE INMEDIATO", 0, 1, 'C')
+    pdf.ln(25)
     
-    pdf.set_y(40)
-    pdf.set_font('Arial', 'B', 16)
-    pdf.cell(0, 10, 'RESUMEN EJECUTIVO DE SALUD', 0, 1, 'C')
-    pdf.ln(5)
+    pdf.set_text_color(0)
+    pdf.set_font('Arial', '', 12)
     
-    # Recuperamos textos del session state (o usamos defaults si no existen)
-    motor = st.session_state.get('reporte_motor', "Ejecute el análisis en la App primero.")
-    mandibula = st.session_state.get('reporte_mandibula', "Ejecute el análisis en la App primero.")
-    legado = st.session_state.get('reporte_legado', "Ejecute el análisis en la App primero.")
-
-    # Función auxiliar para imprimir bloques
-    def imprimir_bloque(titulo, contenido):
-        pdf.set_x(20)
+    acciones = st.session_state.get('plan_choque', ["Ejecuta el análisis primero para ver acciones."])
+    
+    for i, accion in enumerate(acciones, 1):
+        # Limpieza de caracteres markdown para PDF
+        txt = accion.replace("**", "").replace("🔴", "").replace("⚠️", "[ALERTA]").replace("🏢", "").replace("👥", "").replace("✨", "")
+        txt = txt.encode('latin-1', 'replace').decode('latin-1')
+        
+        pdf.set_fill_color(255, 235, 238) # Fondo rosado suave
+        pdf.rect(10, pdf.get_y(), 190, 20, 'F')
+        
+        pdf.set_x(15)
         pdf.set_font('Arial', 'B', 12)
-        pdf.set_text_color(21, 101, 192) # Azul Corporativo
-        pdf.cell(0, 10, titulo, 0, 1)
-        pdf.set_x(20)
+        pdf.cell(10, 10, f"{i}.", 0, 0)
+        
         pdf.set_font('Arial', '', 11)
-        pdf.set_text_color(50)
-        # Limpiamos emojis para el PDF (FPDF a veces falla con unicode)
-        contenido_limpio = contenido.encode('latin-1', 'replace').decode('latin-1')
-        pdf.multi_cell(170, 7, contenido_limpio)
-        pdf.ln(5)
-
-    imprimir_bloque("A. Análisis del Motor (EBITDA)", motor)
-    pdf.ln(5)
-    imprimir_bloque("B. Alerta de Riesgo (Mandíbula)", mandibula)
-    pdf.ln(5)
-    imprimir_bloque("C. Recomendación de Futuro", legado)
-    
-    pdf.set_y(-40)
-    pdf.set_font('Arial', 'I', 10)
-    pdf.cell(0, 10, "Generado por SG Consulting App - La Máquina de Verdad Financiera", 0, 1, 'C')
+        pdf.set_y(pdf.get_y() + 2) # Ajuste vertical
+        pdf.set_x(25)
+        pdf.multi_cell(170, 6, txt)
+        pdf.ln(10)
 
     return pdf.output(dest='S').encode('latin-1', 'replace')
 
+# ==========================================
+# 🔘 BOTÓN DE DESCARGA (VISIBLE SIEMPRE)
+# ==========================================
+st.sidebar.markdown("---")
+st.sidebar.header("📥 Descargar Reporte")
 
-
-
-
-
-
-
-
-
+# Generamos el PDF solo cuando el script llega aquí (ya tiene todos los datos)
+try:
+    pdf_bytes = create_professional_pdf()
+    
+    st.sidebar.download_button(
+        label="📄 Generar Informe PDF Completo",
+        data=pdf_bytes,
+        file_name="SG_Reporte_Financiero.pdf",
+        mime="application/pdf",
+        help="Descarga un reporte ejecutivo con todos los diagnósticos y gráficas."
+    )
+except Exception as e:
+    st.sidebar.error(f"Error generando PDF: {e}")
