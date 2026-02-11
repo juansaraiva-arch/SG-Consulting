@@ -508,8 +508,16 @@ with tabs[2]:
     
     st.markdown("---")
     st.subheader("🛡️ Plan de Choque Sugerido")
-    for accion in acciones_choque:
-        st.warning(accion) if "MANTENIMIENTO" not in accion else st.success(accion)                  
+    
+    if not acciones_choque:
+        st.success("✨ **MANTENIMIENTO:** Tu estructura es sólida. Enfócate en estrategias de crecimiento.")
+    else:
+        for accion in acciones_choque:
+            # CORRECCIÓN: Usamos un bloque if/else estándar para evitar el error 'DeltaGenerator'
+            if "MANTENIMIENTO" in accion:
+                st.success(accion)
+            else:
+                st.warning(accion)                 
 
 
 # --- TAB 4: SUPERVIVENCIA (MAPA GRÁFICO CON META) ---
@@ -909,6 +917,7 @@ def create_pdf():
     pdf.cell(0, 10, "Generado por SG Consulting App - La Máquina de Verdad Financiera", 0, 1, 'C')
 
     return pdf.output(dest='S').encode('latin-1', 'replace')
+
 
 
 
