@@ -245,19 +245,90 @@ with tabs[0]:
         fig_waterfall.update_layout(title="Cascada Detallada", height=600)
         st.plotly_chart(fig_waterfall, use_container_width=True)
 
-# --- TAB 2: LAS MANDÍBULAS (TENDENCIAS) ---
+# --- TAB 2: LAS MANDÍBULAS (TENDENCIAS ACTUALIZADAS V2.5) ---
 with tabs[1]:
-    st.subheader("🦈 Las Mandíbulas de la Muerte (Tendencias)")
+    st.subheader("🦈 Diagnóstico de Divergencia: Ventas vs Costos vs Utilidad")
+    
     if modo_operacion == "Modo A: Diagnóstico Flash (Foto)":
-        st.warning("⚠️ Disponible solo en 'Modo B: Estratega' (Carga Excel).")
+        st.warning("⚠️ Esta visualización requiere datos históricos. Por favor, usa el 'Modo B: Estratega' subiendo un archivo CSV.")
     elif df_historico is not None:
-        df_historico['Costos_Totales'] = df_historico['Costo_Ventas'] + df_historico['Alquiler'] + df_historico['Planilla'] + df_historico['Otros_Gastos']
+        # 1. Preparación de Datos
+        df = df_historico.copy()
+        df['Costos_Totales'] = df['Costo_Ventas'] + df['Alquiler'] + df['Planilla'] + df['Otros_Gastos']
+        df['Utilidad_Neta'] = df['Ventas'] - df['Costos_Totales']
+        
+        # 2. Lógica para el sombreado de "Ineficiencia" (Red > Blue)
+        # Creamos una serie que solo contenga valores cuando los costos superan las ventas
+        df['Costos_Exceso'] = df.apply(lambda x: x['Costos_Totales'] if x['Costos_Totales'] > x['Ventas'] else x['Ventas'], axis=1)
+
         fig_jaws = go.Figure()
-        fig_jaws.add_trace(go.Scatter(x=df_historico['Mes'], y=df_historico['Ventas'], mode='lines+markers', name='Ventas (Azul)', line=dict(color='blue', width=3)))
-        fig_jaws.add_trace(go.Scatter(x=df_historico['Mes'], y=df_historico['Costos_Totales'], mode='lines+markers', name='Costos (Rojo)', line=dict(color='red', width=3)))
-        fig_jaws.update_layout(title="Tendencia: ¿Las líneas se abren o se cruzan?", height=500)
+
+        # A. BARRAS DE UTILIDAD (Base)
+        fig_jaws.add_trace(go.Bar(
+            x=df['Mes'], 
+            y=df['Utilidad_Neta'],
+            name='Spread (Utilidad)',
+            marker_color=['#66bb6a' if u > 0 else '#ffa726' for u in df['Utilidad_Neta']],
+            opacity=0.6,
+            hovertemplate='Mes: %{x}<br>Utilidad: $%{y:,.2f}<extra></extra>'
+        ))
+
+        # B. LÍNEA DE VENTAS (Top Line)
+        fig_jaws.add_trace(go.Scatter(
+            x=df['Mes'], y=df['Ventas'],
+            mode='lines+markers',
+            name='Ventas',
+            line=dict(color='#1565c0', width=4),
+            hovertemplate='Ventas: $%{y:,.2f}'
+        ))
+
+        # C. LÍNEA DE COSTOS CON SOMBREADO
+        fig_jaws.add_trace(go.Scatter(
+            x=df['Mes'], y=df['Costos_Totales'],
+            mode='lines+markers',
+            name='Costos Totales',
+            line=dict(color='#c62828', width=4),
+            fill='tonexty', # Sombrea hacia la línea de ventas (que debe estar antes en el código)
+            fillcolor='rgba(198, 40, 40, 0.2)', 
+            hovertemplate='Costos: $%{y:,.2f}'
+        ))
+
+        # 3. DETECCIÓN DEL PUNTO DE INEFICIENCIA
+        # Buscamos el primer mes donde Costos > Ventas
+        punto_quiebre = df[df['Costos_Totales'] > df['Ventas']].first_valid_index()
+        
+        if punto_quiebre is not None:
+            mes_q = df.loc[punto_quiebre, 'Mes']
+            valor_q = df.loc[punto_quiebre, 'Costos_Totales']
+            
+            fig_jaws.add_annotation(
+                x=mes_q, y=valor_q,
+                text="⚠️ Punto de Ineficiencia",
+                showarrow=True,
+                arrowhead=2,
+                arrowcolor="#c62828",
+                ax=0, ay=-40,
+                font=dict(color="#ffffff", size=12),
+                bgcolor="#c62828"
+            )
+
+        # Configuración del Layout
+        fig_jaws.update_layout(
+            height=600,
+            template="plotly_white",
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+            margin=dict(l=20, r=20, t=80, b=20),
+            hovermode="x unified",
+            yaxis_title="Monto Financiero ($)"
+        )
+
         st.plotly_chart(fig_jaws, use_container_width=True)
-        st.info("Diagnóstico: Si la línea roja toca o cruza la azul, tienes Desconomía de Escala.")
+        
+        st.info("""
+        **Guía de Lectura:**
+        * **Barras Verdes/Naranjas:** Representan el 'oxígeno' real que queda después de pagar todo.
+        * **Sombreado Rojo:** Es la 'zona de quema'. Si las líneas se cruzan, estás en deseconomía de escala: vender más te está haciendo más pobre.
+        """)
 
 # --- TAB 3: SEMÁFORO & SIMULADOR (RECUPERADO VISUALMENTE) ---
 with tabs[2]:
@@ -654,6 +725,7 @@ def create_pdf():
 st.sidebar.markdown("---")
 if st.sidebar.button("📄 Descargar PDF"):
     st.sidebar.download_button("💾 Guardar Informe", data=create_pdf(), file_name="SG_Informe_V2.5.pdf", mime="application/pdf")
+
 
 
 
