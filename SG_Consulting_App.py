@@ -531,79 +531,130 @@ with tabs[1]:
         * **Sombreado Rojo:** Es la 'zona de quema'. Si las líneas se cruzan, estás en deseconomía de escala: vender más te está haciendo más pobre.
         """)
 
-# --- TAB 3: SEMÁFORO INTEGRAL (REDISEÑO ESTÉTICO) ---
+# --- TAB 3: SEMÁFORO INTEGRAL (FISCAL + OPERATIVO + FINANCIERO) ---
 with tabs[2]:
-    st.subheader("🚦 Tablero de Control: Eficiencia y Riesgos")
+    st.subheader("🚦 Tablero de Control Maestro")
     
-    # --- 1. CÁLCULOS PREVIOS (Backend) ---
+    # --- CÁLCULOS PREVIOS (Backend) ---
     ratio_alquiler = (gasto_alquiler_mes / ventas_mes) * 100 if ventas_mes > 0 else 0
     ratio_planilla_ub = (gasto_planilla_mes / utilidad_bruta_mes) * 100 if utilidad_bruta_mes > 0 else 0
     
     if intereses_mes > 0:
         cobertura_bancaria = ebitda_mes / intereses_mes
     else:
-        cobertura_bancaria = 10.0 # Valor alto seguro
+        cobertura_bancaria = 10.0
         
     pasivo_circulante = cuentas_pagar + deuda_bancaria
     prueba_acida = (caja + cuentas_cobrar) / pasivo_circulante if pasivo_circulante > 0 else 0
+    
+    ventas_anual_proy = ventas_mes * 12
+
+    # =========================================================
+    # BLOQUE 0: RADAR FISCAL & TALENTO (LO QUE FALTABA)
+    # =========================================================
+    col_radar, col_gap = st.columns([1, 1.5])
+    
+    with col_radar:
+        st.markdown("### 📡 1. Radar Fiscal (ITBMS)")
+        st.caption("Proyección Anual de Ventas")
+        
+        # Métrica Visual
+        st.metric("Ventas Proyectadas", f"${ventas_anual_proy:,.0f}", help="Venta Mensual x 12")
+        
+        if ventas_anual_proy >= 36000:
+            st.error("⚠️ **OBLIGATORIO:** Superaste los $36k/año.")
+            st.markdown("""
+            <div style="font-size: 12px; background-color: #ffebee; padding: 5px; border-radius: 5px; color: #b71c1c;">
+                Debes cobrar el <strong>7% de ITBMS</strong>. Ajusta tus precios.
+            </div>
+            """, unsafe_allow_html=True)
+        elif ventas_anual_proy >= 30000:
+            st.warning("⚠️ **PRECAUCIÓN:** Zona Amarilla.")
+            st.caption("Estás cerca del límite de $36k.")
+        else:
+            st.success("✅ **LIBRE:** Régimen Simplificado.")
+            st.caption("No cobras ITBMS aún.")
+
+    with col_gap:
+        st.markdown("### 👥 2. Realidad de Nómina")
+        st.caption("Brecha: Costo Empresa vs. Bolsillo Empleado")
+        
+        # Recuperamos los detalles de nómina si existen (Modo A)
+        # Si estamos en Modo B (CSV), usamos datos simulados para el gráfico
+        datos_grafico = []
+        if 'detalles_nomina' in locals() and detalles_nomina:
+             datos_grafico = detalles_nomina
+        else:
+             # Simulacion visual para Modo Estratega si no hay detalle
+             datos_grafico = [
+                 {"Rol": "Equipo (Promedio)", "Costo Empresa": gasto_planilla_mes, "Bolsillo Empleado": gasto_planilla_mes * 0.75}
+             ]
+        
+        df_chart_talento = pd.DataFrame(datos_grafico)
+        
+        if not df_chart_talento.empty:
+            fig_talento = go.Figure()
+            # Barra Costo Real
+            fig_talento.add_trace(go.Bar(
+                y=df_chart_talento['Rol'], x=df_chart_talento['Costo Empresa'],
+                name='Costo Real (Tu Gasto)', orientation='h', marker_color='#ef5350'
+            ))
+            # Barra Neto
+            fig_talento.add_trace(go.Bar(
+                y=df_chart_talento['Rol'], x=df_chart_talento['Bolsillo Empleado'],
+                name='Neto (Su Bolsillo)', orientation='h', marker_color='#66bb6a',
+                text=df_chart_talento['Bolsillo Empleado'].apply(lambda x: f"${x:,.0f}"), textposition='auto'
+            ))
+            fig_talento.update_layout(barmode='group', height=200, margin=dict(l=0, r=0, t=0, b=0), legend=dict(orientation="h", y=-0.2))
+            st.plotly_chart(fig_talento, use_container_width=True)
+
+    st.markdown("---")
 
     # =========================================================
     # BLOQUE A: EFICIENCIA OPERATIVA (GAUGES / RELOJES)
     # =========================================================
-    st.markdown("### ⚙️ 1. Eficiencia Operativa (Estructura de Costos)")
-    st.caption("¿Qué tan pesada es tu mochila de gastos fijos?")
+    st.markdown("### ⚙️ 3. Eficiencia Operativa (Estructura de Costos)")
     
     col_gauge1, col_gauge2 = st.columns(2)
 
     # --- RELOJ DE ALQUILER ---
     with col_gauge1:
-        # Definir colores del semáforo
         color_renta = "#43a047" if ratio_alquiler <= 10 else "#fb8c00" if ratio_alquiler <= 15 else "#e53935"
-        
         fig_renta = go.Figure(go.Indicator(
             mode = "gauge+number", value = ratio_alquiler,
             title = {'text': "Eficiencia Inmobiliaria (% Ventas)"},
             gauge = {
-                'axis': {'range': [None, 30]}, 
-                'bar': {'color': color_renta},
+                'axis': {'range': [None, 30]}, 'bar': {'color': color_renta},
                 'steps': [{'range': [0, 15], 'color': "#f1f8e9"}, {'range': [15, 30], 'color': "#ffebee"}],
                 'threshold': {'line': {'color': "red", 'width': 4}, 'thickness': 0.75, 'value': 15}
             }
         ))
-        fig_renta.update_layout(height=280, margin=dict(l=30, r=30, t=50, b=20), paper_bgcolor="rgba(0,0,0,0)")
+        fig_renta.update_layout(height=250, margin=dict(l=30, r=30, t=40, b=20))
         st.plotly_chart(fig_renta, use_container_width=True)
-        
-        # Micro-diagnóstico
-        if ratio_alquiler > 15:
-            st.warning(f"⚠️ **ALERTA:** Tu alquiler consume el {ratio_alquiler:.1f}% de tus ventas (Ideal < 10-15%).")
+        if ratio_alquiler > 15: st.warning(f"⚠️ Trabajas para el local ({ratio_alquiler:.1f}%).")
 
     # --- RELOJ DE NÓMINA ---
     with col_gauge2:
         color_nomina = "#43a047" if ratio_planilla_ub <= 35 else "#fb8c00" if ratio_planilla_ub <= 45 else "#e53935"
-        
         fig_nomina = go.Figure(go.Indicator(
             mode = "gauge+number", value = ratio_planilla_ub,
             title = {'text': "Peso de Nómina (% Ut. Bruta)"},
             gauge = {
-                'axis': {'range': [None, 60]}, 
-                'bar': {'color': color_nomina},
+                'axis': {'range': [None, 60]}, 'bar': {'color': color_nomina},
                 'steps': [{'range': [0, 45], 'color': "#f1f8e9"}, {'range': [45, 60], 'color': "#ffebee"}],
                 'threshold': {'line': {'color': "red", 'width': 4}, 'thickness': 0.75, 'value': 45}
             }
         ))
-        fig_nomina.update_layout(height=280, margin=dict(l=30, r=30, t=50, b=20), paper_bgcolor="rgba(0,0,0,0)")
+        fig_nomina.update_layout(height=250, margin=dict(l=30, r=30, t=40, b=20))
         st.plotly_chart(fig_nomina, use_container_width=True)
-        
-        if ratio_planilla_ub > 45:
-            st.warning(f"⚠️ **ALERTA:** Tu equipo se lleva el {ratio_planilla_ub:.1f}% de tu ganancia bruta (Ideal < 35-45%).")
+        if ratio_planilla_ub > 45: st.warning(f"⚠️ Equipo costoso ({ratio_planilla_ub:.1f}% de UB).")
 
     st.markdown("---")
 
     # =========================================================
-    # BLOQUE B: SALUD FINANCIERA (TARJETAS DE DEUDA)
+    # BLOQUE B: SALUD FINANCIERA (TARJETAS)
     # =========================================================
-    st.markdown("### 🏦 2. Salud Financiera (Solvencia y Liquidez)")
-    st.caption("¿Tienes oxígeno para sobrevivir a una crisis?")
+    st.markdown("### 🏦 4. Salud Financiera (Solvencia)")
     
     col_fin1, col_fin2 = st.columns(2)
     
@@ -613,93 +664,68 @@ with tabs[2]:
         border_banco = "#2e7d32" if cobertura_bancaria >= 1.5 else "#c62828"
         
         st.markdown(f"""
-        <div style="background-color: {bg_banco}; padding: 20px; border-radius: 10px; border-left: 6px solid {border_banco}; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                    <h5 style="margin:0; color:#555; font-size: 14px;">Cobertura Bancaria</h5>
-                    <small style="color:#777;">(EBITDA / Intereses)</small>
-                </div>
-                <h2 style="margin:0; color: #333;">{cobertura_bancaria:.1f}x</h2>
-            </div>
-            <hr style="margin: 10px 0; border-color: rgba(0,0,0,0.1);">
-            <p style="margin:0; font-weight: bold; font-size: 14px; color: {border_banco};">{estado_banco}</p>
-            <p style="margin:0; font-size: 11px; color: #666;">Meta: > 1.5x veces</p>
+        <div style="background-color: {bg_banco}; padding: 15px; border-radius: 10px; border-left: 6px solid {border_banco};">
+            <h5 style="margin:0; color:#555;">Cobertura Bancaria</h5>
+            <h2 style="margin:5px 0; color: #333;">{cobertura_bancaria:.1f}x</h2>
+            <small>{estado_banco} (Meta > 1.5x)</small>
         </div>
         """, unsafe_allow_html=True)
 
     with col_fin2: # Prueba Ácida
-        estado_acida = "🟢 Oxígeno OK" if prueba_acida >= 1.0 else "🔴 Asfixia (Iliquidez)"
+        estado_acida = "🟢 Oxígeno OK" if prueba_acida >= 1.0 else "🔴 Asfixia"
         bg_acida = "#e8f5e9" if prueba_acida >= 1.0 else "#ffebee"
         border_acida = "#2e7d32" if prueba_acida >= 1.0 else "#c62828"
         
         st.markdown(f"""
-        <div style="background-color: {bg_acida}; padding: 20px; border-radius: 10px; border-left: 6px solid {border_acida}; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                    <h5 style="margin:0; color:#555; font-size: 14px;">Prueba Ácida</h5>
-                    <small style="color:#777;">(Liquidez Inmediata)</small>
-                </div>
-                <h2 style="margin:0; color: #333;">{prueba_acida:.2f}x</h2>
-            </div>
-            <hr style="margin: 10px 0; border-color: rgba(0,0,0,0.1);">
-            <p style="margin:0; font-weight: bold; font-size: 14px; color: {border_acida};">{estado_acida}</p>
-            <p style="margin:0; font-size: 11px; color: #666;">Meta: > 1.0x (Dólar x Dólar)</p>
+        <div style="background-color: {bg_acida}; padding: 15px; border-radius: 10px; border-left: 6px solid {border_acida};">
+            <h5 style="margin:0; color:#555;">Prueba Ácida (Liquidez)</h5>
+            <h2 style="margin:5px 0; color: #333;">{prueba_acida:.2f}x</h2>
+            <small>{estado_acida} (Meta > 1.0x)</small>
         </div>
         """, unsafe_allow_html=True)
 
     st.markdown("---")
 
     # =========================================================
-    # BLOQUE C: LABORATORIO DE ACCIÓN (SIMULADOR + PLAN)
+    # BLOQUE C: LABORATORIO DE ACCIÓN
     # =========================================================
-    st.markdown("### 🔮 3. Laboratorio de Rescate & Plan de Choque")
+    st.markdown("### 🔮 5. Simulador de Rescate")
     
-    # Diseño: Columna Izquierda (Controles) -> Columna Derecha (Resultados + Plan)
     col_sim_controls, col_sim_results = st.columns([1, 1.2])
 
     with col_sim_controls:
-        st.markdown("""
-        <div style="background-color: #f5f5f5; padding: 15px; border-radius: 10px; border: 1px solid #ddd;">
-            <h4 style="margin-top:0;">🎛️ Simulador de Ajuste</h4>
-            <p style="font-size:12px;">Mueve los sliders para ver cuánto valor recuperas optimizando.</p>
-        </div>
-        """, unsafe_allow_html=True)
-        st.write("") # Espacio
-        meta_alquiler = st.slider("📉 Reducir Alquiler en (%):", 0, 50, 0, step=5)
-        meta_planilla = st.slider("✂️ Optimizar Planilla en (%):", 0, 50, 0, step=5)
+        st.write("Objetivos de Reducción:")
+        meta_alquiler = st.slider("📉 Bajar Alquiler (%)", 0, 50, 0, step=5)
+        meta_planilla = st.slider("✂️ Ajustar Nómina (%)", 0, 50, 0, step=5)
     
     with col_sim_results:
-        # Cálculo de Simulación
         ahorro = (gasto_alquiler_mes * meta_alquiler/100) + (gasto_planilla_mes * meta_planilla/100)
         nuevo_ebitda = ebitda_mes + ahorro
-        
-        # Caja de Resultado Verde
         st.markdown(f"""
-        <div style="background-color: #f1f8e9; padding: 20px; border-radius: 10px; border: 2px solid #43a047; text-align: center;">
-            <h4 style="margin:0; color: #2e7d32;">Impacto Patrimonial (Mensual)</h4>
-            <h2 style="margin: 10px 0; color: #1b5e20;">+${ahorro:,.2f}</h2>
-            <p style="font-size: 14px;">Nuevo EBITDA Proyectado: <strong>${nuevo_ebitda:,.2f}</strong></p>
+        <div style="background-color: #f1f8e9; padding: 15px; border-radius: 10px; border: 2px solid #43a047; text-align: center;">
+            <h4 style="margin:0; color: #2e7d32;">Dinero Recuperado (Mes)</h4>
+            <h2 style="margin: 5px 0; color: #1b5e20;">+${ahorro:,.2f}</h2>
+            <p>Nuevo EBITDA: <strong>${nuevo_ebitda:,.2f}</strong></p>
         </div>
         """, unsafe_allow_html=True)
 
-    # PLAN DE CHOQUE AUTOMÁTICO (Debajo del simulador)
+    # PLAN DE CHOQUE
     st.write("")
-    st.markdown("#### 🛡️ Acciones Inmediatas Recomendadas")
+    st.markdown("#### 🛡️ Acciones Inmediatas")
     
     acciones_choque = []
-    if ratio_alquiler > 15: acciones_choque.append("🏢 **ALQUILER:** Renegociar contrato, subarrendar espacios o evaluar mudanza.")
-    if ratio_planilla_ub > 45: acciones_choque.append("👥 **NÓMINA:** Revisar turnos improductivos, reducir horas extra o pasar a esquema variable.")
-    if cobertura_bancaria < 1.5: acciones_choque.append("🏦 **DEUDA:** Detener nueva deuda. Solicitar periodo de gracia (solo intereses).")
-    if prueba_acida < 1.0: acciones_choque.append("🩸 **LIQUIDEZ CRÍTICA:** Ejecutar 'Plan de Rescate de Caja' (Ver Tab Oxígeno).")
+    if ratio_alquiler > 15: acciones_choque.append("🏢 **ALQUILER:** Renegociar contrato o subarrendar.")
+    if ratio_planilla_ub > 45: acciones_choque.append("👥 **NÓMINA:** Revisar eficiencia y turnos.")
+    if cobertura_bancaria < 1.5: acciones_choque.append("🏦 **DEUDA:** Detener deuda nueva.")
+    if prueba_acida < 1.0: acciones_choque.append("🩸 **LIQUIDEZ:** Ejecutar rescate de caja.")
 
-    # Guardar en Session State para el PDF
     st.session_state['plan_choque'] = acciones_choque 
     
     if not acciones_choque:
-        st.success("✅ **ESTRUCTURA SÓLIDA:** No se requieren acciones de emergencia. Enfócate en vender más.")
+        st.success("✅ ESTRUCTURA SÓLIDA. Enfócate en crecer.")
     else:
         for accion in acciones_choque:
-            st.error(accion) # Usamos error para que resalte en rojo como una tarea urgente
+            st.error(accion)
 
 
 # --- TAB 4: SUPERVIVENCIA (MAPA GRÁFICO CON META) ---
@@ -1512,6 +1538,7 @@ if st.sidebar.button("🖨️ Generar Reporte Auditoría (PDF)"):
         st.sidebar.success("✅ Informe generado correctamente.")
     except Exception as e:
         st.sidebar.error(f"Error al generar PDF: {e}")
+
 
 
 
