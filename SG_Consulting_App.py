@@ -428,90 +428,90 @@ with tabs[1]:
         * **Sombreado Rojo:** Es la 'zona de quema'. Si las líneas se cruzan, estás en deseconomía de escala: vender más te está haciendo más pobre.
         """)
 
-# --- TAB 3: SEMÁFORO & SIMULADOR (RECUPERADO VISUALMENTE) ---
+
+# --- TAB 3: SEMÁFORO DE RIESGOS & PLAN DE CHOQUE ---
 with tabs[2]:
-    st.subheader("🚦 Semáforo de Eficiencia y Veredictos")
-    col_renta, col_nomina = st.columns(2)
-
-    # --- INDICADOR DE ALQUILER (GAUGE) ---
-    with col_renta:
-        color_renta = "green"
-        mensaje_renta = "✅ Estructura Óptima."
-        if ratio_alquiler >= 10 and ratio_alquiler <= 15:
-            color_renta = "orange"; mensaje_renta = "⚠️ Estructura Pesada."
-        elif ratio_alquiler > 15:
-            color_renta = "red"; mensaje_renta = "🚨 ALERTA CRÍTICA (Ancla)."
-
-        fig_gauge_renta = go.Figure(go.Indicator(
-            mode = "gauge+number", value = ratio_alquiler,
-            title = {'text': "Ratio Alquiler (%)"},
-            gauge = {
-                'axis': {'range': [None, 30]},
-                'bar': {'color': color_renta},
-                'steps': [{'range': [0, 10], 'color': "#e8f5e9"}, {'range': [10, 15], 'color': "#fff3e0"}, {'range': [15, 30], 'color': "#ffebee"}],
-                'threshold': {'line': {'color': "red", 'width': 4}, 'thickness': 0.75, 'value': 15}
-            }
-        ))
-        fig_gauge_renta.update_layout(height=250)
-        st.plotly_chart(fig_gauge_renta, use_container_width=True)
-        st.markdown(f'<div class="veredicto">{mensaje_renta}</div>', unsafe_allow_html=True)
-
-    # --- INDICADOR DE PLANILLA (GAUGE) ---
-    with col_nomina:
-        color_nomina = "green"
-        mensaje_nomina = "✅ Productivo."
-        if ratio_planilla >= 30 and ratio_planilla <= 40:
-            color_nomina = "orange"; mensaje_nomina = "⚠️ Zona Vigilancia."
-        elif ratio_planilla > 40:
-            color_nomina = "red"; mensaje_nomina = "🚨 ALERTA OBESA."
-
-        fig_gauge_nomina = go.Figure(go.Indicator(
-            mode = "gauge+number", value = ratio_planilla,
-            title = {'text': "Eficiencia Planilla (%)"},
-            gauge = {
-                'axis': {'range': [None, 60]},
-                'bar': {'color': color_nomina},
-                'steps': [{'range': [0, 30], 'color': "#e8f5e9"}, {'range': [30, 40], 'color': "#fff3e0"}, {'range': [40, 60], 'color': "#ffebee"}],
-                'threshold': {'line': {'color': "red", 'width': 4}, 'thickness': 0.75, 'value': 40}
-            }
-        ))
-        fig_gauge_nomina.update_layout(height=250)
-        st.plotly_chart(fig_gauge_nomina, use_container_width=True)
-        st.markdown(f'<div class="veredicto">{mensaje_nomina}</div>', unsafe_allow_html=True)
-
-    # --- SIMULADOR DE RESCATE (RECUPERADO) ---
-    st.markdown("---")
-    st.subheader("🔮 Simulador de Rescate: 'La Palanca de Futuro'")
+    st.subheader("🚦 Panel de Control de Riesgos (KPIs Críticos)")
     
-    col_sim_controls, col_sim_results = st.columns(2)
-
-    with col_sim_controls:
-        st.write("**Metas de Reducción:**")
-        meta_alquiler = st.slider("Reducir Alquiler en (%):", 0, 50, 0, step=5)
-        meta_planilla = st.slider("Optimizar Planilla en (%):", 0, 50, 0, step=5)
-
-    with col_sim_results:
-        # Cálculos de Simulación
-        ahorro_alquiler = gasto_alquiler_mes * (meta_alquiler/100)
-        ahorro_planilla = gasto_planilla_mes * (meta_planilla/100)
-        total_recuperado_mes = ahorro_alquiler + ahorro_planilla
+    # 1. CÁLCULO DE RATIOS
+    # A. Alquiler (Sobre Ventas)
+    ratio_alquiler = (gasto_alquiler_mes / ventas_mes) * 100 if ventas_mes > 0 else 0
+    
+    # B. Planilla (Sobre Utilidad Bruta - Ojo: Usuario pidió sobre UB, no Ventas)
+    ratio_planilla_ub = (gasto_planilla_mes / utilidad_bruta_mes) * 100 if utilidad_bruta_mes > 0 else 0
+    
+    # C. Cobertura Bancaria (EBITDA / Intereses)
+    if intereses_mes > 0:
+        cobertura_bancaria = ebitda_mes / intereses_mes
+    else:
+        cobertura_bancaria = 10.0 # Valor seguro si no hay deuda
         
-        nuevo_ebitda = ebitda_mes + total_recuperado_mes
-        nuevo_valor_empresa = nuevo_ebitda * 12 * multiplo_global
-        plusvalia = nuevo_valor_empresa - valor_empresa_actual_base
+    # D. Prueba Ácida ( (Caja + CxC) / CxP ) -> Usamos Pasivo Circulante estimado como CxP
+    pasivo_circulante = cuentas_pagar 
+    prueba_acida = (caja + cuentas_cobrar) / pasivo_circulante if pasivo_circulante > 0 else 0
 
-        st.markdown(f"""
-        <div class="metric-card">
-            <h4>Impacto Patrimonial</h4>
-            <p>Dinero Recuperado (Mes): <strong style="color:green">+${total_recuperado_mes:,.2f}</strong></p>
-            <p>Nuevo EBITDA Proyectado: <strong>${nuevo_ebitda:,.2f}</strong></p>
-            <hr>
-            <h3>Tu Empresa Valdría: <span style="color: #2e7d32">${nuevo_valor_empresa:,.2f}</span></h3>
-            <p>Ganancia de Valor (Plusvalía): <strong>+${plusvalia:,.2f}</strong></p>
+    # 2. LÓGICA DE SEMÁFOROS (VERDE / NARANJA / ROJO)
+    def obtener_estado(valor, umbral_rojo, tipo='mayor_es_malo'):
+        # Retorna: (Color Hex, Icono, Estado)
+        if tipo == 'mayor_es_malo':
+            if valor > umbral_rojo: return ("#ffebee", "🔴", "CRÍTICO") # Fondo Rojo suave
+            elif valor > (umbral_rojo * 0.8): return ("#fff3e0", "🟠", "ALERTA") # Fondo Naranja
+            else: return ("#e8f5e9", "🟢", "ÓPTIMO") # Fondo Verde
+        else: # menor_es_malo (Cobertura y Ácida)
+            if valor < umbral_rojo: return ("#ffebee", "🔴", "CRÍTICO")
+            elif valor < (umbral_rojo * 1.2): return ("#fff3e0", "🟠", "ALERTA")
+            else: return ("#e8f5e9", "🟢", "ÓPTIMO")
+
+    # Evaluamos los 4 KPIs
+    est_alquiler = obtener_estado(ratio_alquiler, 15.0, 'mayor_es_malo')
+    est_planilla = obtener_estado(ratio_planilla_ub, 45.0, 'mayor_es_malo')
+    est_bancos = obtener_estado(cobertura_bancaria, 1.5, 'menor_es_malo')
+    est_acida = obtener_estado(prueba_acida, 0.8, 'menor_es_malo')
+
+    # 3. VISUALIZACIÓN EN GRID
+    c1, c2, c3, c4 = st.columns(4)
+    
+    def tarjeta_kpi(columna, titulo, valor, sufijo, estado_tuple, explicacion):
+        color_bg, icono, texto_estado = estado_tuple
+        columna.markdown(f"""
+        <div style="background-color: {color_bg}; padding: 15px; border-radius: 10px; border: 1px solid #ddd; text-align: center; height: 200px;">
+            <h4 style="margin:0; font-size: 14px; color: #555;">{titulo}</h4>
+            <h2 style="margin:10px 0; font-size: 28px; color: #333;">{valor:.1f}{sufijo}</h2>
+            <p style="font-weight: bold; font-size: 18px; margin: 0;">{icono} {texto_estado}</p>
+            <hr style="margin: 5px 0;">
+            <p style="font-size: 11px; color: #666;">{explicacion}</p>
         </div>
         """, unsafe_allow_html=True)
 
-# --- TAB 4: SUPERVIVENCIA (índice 3) ---
+    tarjeta_kpi(c1, "Eficiencia Inmobiliaria", ratio_alquiler, "%", est_alquiler, "Meta: <15% de Ventas. Si es alto, trabajas para el arrendador.")
+    tarjeta_kpi(c2, "Peso de Nómina", ratio_planilla_ub, "%", est_planilla, "Meta: <45% de Ut. Bruta. Mide productividad del equipo.")
+    tarjeta_kpi(c3, "Cobertura Intereses", cobertura_bancaria, "x", est_bancos, "Meta: >1.5x. Capacidad de pagar al banco con tu EBITDA.")
+    tarjeta_kpi(c4, "Prueba Ácida", prueba_acida, "x", est_acida, "Meta: >0.8x. Capacidad de pagar hoy sin vender inventario.")
+
+    # 4. GENERADOR DE "PLAN DE CHOQUE" (Lógica para PDF y Pantalla)
+    acciones_choque = []
+    
+    if est_alquiler[2] == "CRÍTICO":
+        acciones_choque.append("🏢 **INMOBILIARIO:** Renegociar contrato de alquiler inmediatamente, subarrendar espacios ociosos o evaluar mudanza a 'Dark Kitchen/Office'.")
+    if est_planilla[2] == "CRÍTICO":
+        acciones_choque.append("👥 **NÓMINA:** La estructura es obesa. Implementar esquema de comisiones variables, reducir turnos improductivos o ajustar plantilla base.")
+    if est_bancos[2] == "CRÍTICO":
+        acciones_choque.append("🏦 **DEUDA:** Riesgo de Default. No tomes más deuda. Acude al banco para pedir meses de gracia (período de carencia) o reestructurar plazo.")
+    if est_acida[2] == "CRÍTICO":
+        acciones_choque.append("🩸 **LIQUIDEZ:** Sangrado activo. Detener pagos a proveedores no críticos. Lanzar promoción de efectivo inmediato (descuento por pronto pago) para recuperar cartera.")
+
+    if not acciones_choque:
+        acciones_choque.append("✨ **MANTENIMIENTO:** Tu estructura es sólida. Enfócate en estrategias de crecimiento (Marketing) en lugar de supervivencia.")
+
+    # Guardar en Session State para el PDF
+    st.session_state['plan_choque'] = acciones_choque
+    
+    st.markdown("---")
+    st.subheader("🛡️ Plan de Choque Sugerido")
+    for accion in acciones_choque:
+        st.warning(accion) if "MANTENIMIENTO" not in accion else st.success(accion)                  
+
+
 # --- TAB 4: SUPERVIVENCIA (MAPA GRÁFICO CON META) ---
 with tabs[3]:
     st.subheader("⚖️ Mapa de Supervivencia & Metas")
@@ -909,6 +909,7 @@ def create_pdf():
     pdf.cell(0, 10, "Generado por SG Consulting App - La Máquina de Verdad Financiera", 0, 1, 'C')
 
     return pdf.output(dest='S').encode('latin-1', 'replace')
+
 
 
 
