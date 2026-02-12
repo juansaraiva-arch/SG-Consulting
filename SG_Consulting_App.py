@@ -8,7 +8,7 @@ import io
 # ==========================================
 # CONFIGURACIÓN INICIAL Y ESTILOS
 # ==========================================
-st.set_page_config(page_title="SG Consulting | Máquina de Verdad Financiera", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="SG Solvens | Estrategia de Blindaje y Soberanía Patrimonial", layout="wide", initial_sidebar_state="expanded")
 
 # ==========================================
 # 🇵🇦 MOTOR DE CÁLCULO NÓMINA PANAMÁ
@@ -127,7 +127,7 @@ with st.sidebar:
     if modo_operacion == "Modo A: Diagnóstico Flash (Foto)":
         st.info("📸 **Modo Flash:** Ingresa los datos de un mes representativo.")
         
-        with st.expander("1. Estado de Resaltudos (P&L)", expanded=True):
+        with st.expander("1. Estado de Resultados (P&L)", expanded=True):
             ventas_mes = st.number_input("Ventas Totales ($)", value=50000.0, step=1000.0)
             costo_ventas_mes = st.number_input("Costo de Ventas (Variable)", value=30000.0, step=1000.0)
 
@@ -1535,6 +1535,7 @@ if st.sidebar.button("🖨️ Generar Reporte Auditoría (PDF)"):
         st.sidebar.success("✅ Informe generado correctamente.")
     except Exception as e:
         st.sidebar.error(f"Error al generar PDF: {e}")
+
 
 
 
