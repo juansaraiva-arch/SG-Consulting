@@ -92,7 +92,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-st.title("🚀 SG Consulting | La Máquina de Verdad Financiera")
+st.title("🚀 SG Solvens | Estrategia de Blindaje y Soberanía Patrimonial")
 st.markdown("**Versión 2.5:** Diagnóstico Flash, Tendencias 'Mandíbulas', Valoración Patrimonial e Ingeniería de Precios.")
 
 # ==========================================
@@ -1535,6 +1535,7 @@ if st.sidebar.button("🖨️ Generar Reporte Auditoría (PDF)"):
         st.sidebar.success("✅ Informe generado correctamente.")
     except Exception as e:
         st.sidebar.error(f"Error al generar PDF: {e}")
+
 
 
 
